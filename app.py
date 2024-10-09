@@ -202,7 +202,7 @@ def add_product():
             crop_image_to_square(filepath)
 
             # Comprimir la imagen a un tamaño más pequeño
-            compress_image(filepath, quality=50)  # Ajustar la calidad según tus necesidades
+            compress_image(filepath, quality=40)  # Ajustar la calidad según tus necesidades
 
             # Guardar solo la ruta relativa de la imagen
             imagen = os.path.join('/static/uploads', filename)
