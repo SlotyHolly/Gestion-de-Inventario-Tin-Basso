@@ -1,0 +1,208 @@
+/* Estilo general para asegurar centrado y alineación */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    text-align: center;
+}
+
+/* Contenedor principal */
+.main-container {
+    justify-content: center; /* Centrar el contenedor principal */
+    align-items: center;
+    min-height: 100vh; /* Ocupa toda la altura de la ventana */
+}
+
+.main-content {
+    margin: 10px 0; /* Reduce el margen superior e inferior del título */
+    width: 80%; /* Limitar el ancho máximo */
+    max-width: 1000px; /* Ancho máximo para el contenido */
+    margin: 20px auto; /* Centrar horizontalmente */
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Sombra para el contenedor */
+}
+
+/* Contenedor de botones y filtros */
+.button-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+/* Estilo de botones */
+.button {
+    padding: 10px 15px;
+    background-color: #4CAF50;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    margin: 0 10px;
+    display: inline-block;
+    transition: background-color 0.3s ease;
+}
+
+.button:hover {
+    background-color: #45a049;
+}
+
+/* Filtros de tags */
+.filter-form {
+    margin-top: 0; /* Remueve margen superior */
+    margin-bottom: 10px; /* Agrega un pequeño margen inferior */
+}
+
+.tags-filter {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 0; /* Remueve margen superior */
+    margin-bottom: 10px; /* Agrega un pequeño margen inferior */
+}
+
+.filter-tag {
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    background-color: #f0f0f0;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+    font-size: 14px;
+    margin: 0;
+}
+
+.filter-tag.active {
+    background-color: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+}
+
+.filter-tag:hover {
+    background-color: #e0e0e0;
+}
+
+.filter-tag input[type="checkbox"] {
+    display: none; /* Ocultar los checkboxes */
+}
+
+/* Ajustar el contenedor de productos */
+.product-cards-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* Tarjeta de producto */
+.product-card {
+    width: 250px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 15px;
+    text-align: left;
+}
+
+.product-card-actions {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Imágenes de productos */
+.product-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.button-delete {
+    background-color: #f44336;
+    color: white;
+    padding: 5px 10px;
+    border: none;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.button-delete:hover {
+    background-color: #e53935;
+}
+
+
+/* Estilo para formularios */
+.form-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    text-align: left;
+}
+
+.form-group label {
+    font-size: 16px;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.form-input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+}
+
+.form-input:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+/* Estilos para lista de tags */
+.tags-list {
+    list-style: none;
+    padding: 0;
+    text-align: left;
+}
+
+.tag-item {
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Estilo para el contenedor de filtros */
+.tags-filter {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* Estilo para la barra de búsqueda */
+.search-input {
+    padding: 10px;
+    width: 300px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    margin-bottom: 20px; /* Espacio inferior entre la barra y el contenido */
+}
+
+.search-input:focus {
+    border-color: #4CAF50;
+    outline: none;
+}

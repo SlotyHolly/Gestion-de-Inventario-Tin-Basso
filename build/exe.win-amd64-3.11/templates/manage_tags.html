@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Contenedor principal para centrar el contenido -->
+<div class="main-container">
+    <div class="main-content">
+        <h2>Administrar Tags</h2>
+        <form method="POST" action="{{ url_for('add_tag') }}" class="form-container">
+            <div class="form-group">
+                <label for="tag">Nuevo Tag</label>
+                <input type="text" id="tag" name="tag" required class="form-input">
+            </div>
+            <button type="submit" class="button">Agregar Tag</button>
+        </form>
+
+        <h3>Tags Existentes</h3>
+        <ul class="tags-list">
+            {% for tag in tags %}
+            <li class="tag-item">
+                {{ tag }}
+                <form action="{{ url_for('delete_tag', tag=tag) }}" method="POST" style="display:inline;">
+                    <button type="submit" class="button-delete">Eliminar</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+        <a href="{{ url_for('index') }}" class="button">Volver</a>
+    </div>
+</div>
+{% endblock %}
