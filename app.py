@@ -30,9 +30,16 @@ app = Flask(__name__,
             static_folder=os.path.join(base_dir, 'static'))       # Ruta completa de static
 app.secret_key = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = 'static/uploads/'  # Carpeta para guardar las imágenes
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 tags_file = 'tags.json'
+
+# Función para comprimir y guardar la imagen
+def compress_image(image_path, output_path, quality=70):
+    with Image.open(image_path) as img:
+        # Comprimir y guardar la imagen
+        img = img.convert("RGB")  # Convertir a RGB para evitar problemas de compatibilidad
+        img.save(output_path, "JPEG", optimize=True, quality=quality)
 
 # Función para eliminar la imagen del sistema de archivos
 def delete_image(image_path):
@@ -57,14 +64,23 @@ def delete_image(image_path):
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
-# Función para verificar si la extensión del archivo está permitida
+# Función para verificar si el archivo tiene una extensión permitida
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Función para generar un nombre de archivo basado en el nombre del producto
 def generate_filename(nombre_producto, extension):
     nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
     return f"{nombre_seguro}.{extension}"
+
+# Función para comprimir la imagen
+def compress_image(image_path, quality):
+    """Comprime la imagen para reducir su tamaño manteniendo una calidad aceptable."""
+    with Image.open(image_path) as img:
+        # Convertir a RGB para evitar problemas de compatibilidad con algunos formatos
+        img = img.convert("RGB")
+        # Comprimir la imagen y sobrescribir la original
+        img.save(image_path, "JPEG", optimize=True, quality=quality)
 
 # Función para cargar el inventario
 def load_inventory():
@@ -158,6 +174,7 @@ def delete_tag(tag):
     save_inventory(inventario)  # Guardar inventario actualizado
     return redirect(url_for('manage_tags'))
 
+# Ruta para agregar productos con compresión de imagen
 @app.route('/add', methods=['GET', 'POST'])
 def add_product():
     tags = load_tags()
@@ -184,14 +201,19 @@ def add_product():
             # Recortar la imagen a una proporción 1:1
             crop_image_to_square(filepath)
 
+            # Comprimir la imagen a un tamaño más pequeño
+            compress_image(filepath, quality=50)  # Ajustar la calidad según tus necesidades
+
             # Guardar solo la ruta relativa de la imagen
             imagen = os.path.join('/static/uploads', filename)
 
         # Crear el nuevo producto con la ruta de la imagen relativa
         inventario.append({'id': new_id, 'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags, 'imagen': imagen})
         save_inventory(inventario)
+        flash('Producto agregado con éxito y la imagen se comprimió correctamente.', 'success')
         return redirect(url_for('index'))
     return render_template('add_product.html', tags=tags)
+
 
 @app.route('/edit/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
