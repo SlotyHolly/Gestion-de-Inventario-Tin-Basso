@@ -143,10 +143,15 @@ def save_product(product):
         response = requests.post(url, json={"value": str(product)}, headers=headers)
         if response.status_code == 200:
             print(f"Producto {key} guardado exitosamente.")
+            
+            # Agregar la clave del producto a la lista "products"
+            url_push = f"{KV_REST_API_URL}/rpush/products"
+            requests.post(url_push, json={"value": key}, headers=headers)
         else:
             print(f"Error al guardar {key}: {response.status_code}, {response.text}")
     except Exception as e:
         print(f"Error de conexión a la API REST al guardar {key}: {e}")
+
 
 
 # Función para cargar los tags usando la API REST
