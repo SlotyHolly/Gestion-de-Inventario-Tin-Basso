@@ -11,7 +11,13 @@ base_dir = os.path.abspath(os.path.dirname(__file__))
 REDIS_URL = os.getenv('KV_URL')  # Usar la variable de entorno para la URL de conexión
 
 # Configurar la conexión a Redis (KV Database)
-redis_client = redis.StrictRedis.from_url(REDIS_URL, decode_responses=True)
+redis_client = redis.StrictRedis.from_url(
+    REDIS_URL,
+    decode_responses=True,
+    socket_timeout=5,          # Tiempo de espera para las operaciones en segundos
+    socket_connect_timeout=5,  # Tiempo de espera para la conexión en segundos
+    retry_on_timeout=True      # Reintentar la conexión si hay un tiempo de espera
+)
 
 # Crear la aplicación Flask
 app = Flask(__name__,
