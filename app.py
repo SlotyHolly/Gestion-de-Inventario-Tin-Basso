@@ -169,12 +169,12 @@ def save_product(product):
 
 
 
-# Función para cargar los tags usando la API REST
 def load_tags():
     url = f"{KV_REST_API_URL}/lrange/tags/0/-1"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
+            # No es necesario decodificar nuevamente
             return response.json()["result"]
         else:
             print(f"Error al obtener tags: {response.status_code}, {response.text}")
@@ -182,17 +182,23 @@ def load_tags():
     except Exception as e:
         print(f"Error de conexión a la API REST: {e}")
         return []
-
-# Función para guardar los tags en la API REST
+    
+# Función para guardar los tags en la API REST (ajustada para evitar doble codificación)
 def save_tags(tags):
     # Eliminar la lista anterior de tags
     url_delete = f"{KV_REST_API_URL}/del/tags"
     requests.post(url_delete, headers=headers)
 
+    # Almacenar cada tag de forma individual sin doble codificación
     for tag in tags:
-        # Agregar cada tag como una cadena, no como un diccionario
+        # Aquí nos aseguramos de no codificar los valores en un JSON adicional
         url_push = f"{KV_REST_API_URL}/rpush/tags"
-        requests.post(url_push, json={"value": tag}, headers=headers)
+        response = requests.post(url_push, json={"value": tag}, headers=headers)
+        
+        if response.status_code == 200:
+            print(f"Tag {tag} agregado correctamente.")
+        else:
+            print(f"Error al agregar el tag {tag}: {response.status_code}, {response.text}")
 
 def delete_incorrect_keys():
     url_lrange = f"{KV_REST_API_URL}/lrange/products/0/-1"
