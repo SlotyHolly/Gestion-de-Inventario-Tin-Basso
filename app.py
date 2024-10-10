@@ -54,16 +54,6 @@ def crop_image_to_square(image):
     bottom = (height + min_dimension) / 2
     return image.crop((left, top, right, bottom))
 
-# Función para eliminar la imagen del sistema de archivos
-def delete_image(image_path):
-    if image_path:
-        full_image_path = os.path.abspath(os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(image_path)))
-        if os.path.exists(full_image_path):
-            try:
-                os.remove(full_image_path)
-            except Exception as e:
-                print(f"Error al eliminar la imagen: {e}")
-
 # Asegurarse de que la carpeta de subida exista
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
