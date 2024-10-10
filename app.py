@@ -12,11 +12,13 @@ REDIS_URL = os.getenv('KV_URL')  # Usar la variable de entorno para la URL de co
 
 # Configurar la conexión a Redis (KV Database)
 redis_client = redis.StrictRedis.from_url(
-    REDIS_URL,
-    decode_responses=True,
-    socket_timeout=5,          # Tiempo de espera para las operaciones en segundos
-    socket_connect_timeout=5,  # Tiempo de espera para la conexión en segundos
-    retry_on_timeout=True      # Reintentar la conexión si hay un tiempo de espera
+        REDIS_URL,
+        decode_responses=True,
+        socket_timeout=10,           # Aumentar el tiempo de espera para operaciones en segundos
+        socket_connect_timeout=10,   # Aumentar el tiempo de espera para la conexión en segundos
+        retry_on_timeout=True,        # Reintentar la conexión en caso de tiempo de espera
+        ssl=True,                   # Habilitar SSL
+        ssl_cert_reqs=None          # No verificar certificados (cambiar según sea necesario)
 )
 
 # Crear la aplicación Flask
