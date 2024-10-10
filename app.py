@@ -82,55 +82,39 @@ def generate_filename(nombre_producto, extension):
 def load_inventory():
     inventario = []
     try:
-        # Mensaje de depuración para verificar la conexión
-        print(f"Intentando conectar a la API REST en {KV_REST_API_URL}")
-
-        # Hacer una solicitud a la API REST para obtener las claves de los productos
-        url = f"{KV_REST_API_URL}/keys?pattern=product:*"
-        print(f"Solicitando inventario con URL: {url}")
-        
+        # Usar lrange para obtener todas las claves de productos almacenadas en una lista
+        url = f"{KV_REST_API_URL}/lrange/products/0/-1"
         response = requests.get(url, headers=headers)
 
         # Mostrar el código de estado de la respuesta para depuración
-        print(f"Respuesta de la API REST: {response.status_code}")
+        print(f"Respuesta de la API REST al obtener claves: {response.status_code}")
 
         if response.status_code == 200:
             keys = response.json().get('result', [])
             print(f"Claves obtenidas: {keys}")
             
+            # Obtener los datos de cada clave
             for key in keys:
                 product_data = rest_get(key)
                 if product_data:
-                    # Mensaje de depuración para verificar los datos del producto
-                    print(f"Datos del producto: {product_data}")
+                    product = eval(product_data)  # Convertir la cadena a diccionario
+                    product['cantidad'] = int(product['cantidad'])
+                    product['precio'] = float(product['precio'])
+                    product['tags'] = product['tags'].split(',') if product['tags'] else []
 
-                    # Convertir la cadena a diccionario
-                    product = eval(product_data)  # Usar json.loads si es un JSON válido en lugar de eval
-
-                    # Asegurarse de que el producto tenga todos los campos necesarios
-                    if all(k in product for k in ['id', 'nombre', 'cantidad', 'precio']):
-                        product['cantidad'] = int(product['cantidad'])
-                        product['precio'] = float(product['precio'])
-                        product['tags'] = product['tags'].split(',') if product['tags'] else []
-
-                        # Si el producto tiene una imagen, obtener la URL de S3
-                        if 'imagen' in product and product['imagen']:
-                            product['imagen'] = f'https://{BUCKET_NAME}.s3.amazonaws.com/{product["imagen"]}'
-                        
-                        inventario.append(product)
-                    else:
-                        print(f"Producto inválido: {product}")
+                    # Si el producto tiene una imagen, obtener la URL de S3
+                    if 'imagen' in product and product['imagen']:
+                        product['imagen'] = f'https://{BUCKET_NAME}.s3.amazonaws.com/{product["imagen"]}'
+                    
+                    inventario.append(product)
+            print(f"Inventario cargado: {inventario}")
         else:
-            print(f"Error al obtener inventario: {response.status_code}, {response.text}")
+            print(f"Error al obtener inventario con LRANGE: {response.status_code}, {response.text}")
 
     except Exception as e:
         print(f"Error de conexión o problema al cargar el inventario: {e}")
 
-    # Mensaje de depuración para verificar el inventario final cargado
-    print(f"Inventario cargado: {inventario}")
-
     return inventario
-
 
 # Función para obtener los datos de una clave específica utilizando la API REST de Upstash
 def rest_get(key):
