@@ -14,8 +14,8 @@ base_dir = os.path.abspath(os.path.dirname(__file__))
 s3_client = boto3.client(
     's3',
     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-    aws_secret_access_key=os.getenv('/D78N622q/8kHDtcCu79G8JVUBfGLne4yu2aJp3L'),
-    region_name='us-east-2'  # Cambia esto a la región que estés usando
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.getenv('AWS_REGION')  # Cambia esto a la región que estés usando
 )
 
 BUCKET_NAME = os.getenv('BUCKET_S3_NAME')  # Cambia esto al nombre de tu bucket de S3
