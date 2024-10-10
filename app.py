@@ -148,7 +148,8 @@ def rest_get(key):
 def save_product(product):
     key = f"product:{product['id']}"
     product['tags'] = ','.join(product['tags'])  # Convertir la lista de tags a una cadena
-    
+    # Verificar el formato de las claves antes de guardar
+    print(f"Clave a guardar en la lista 'products': {key}")
     # Guardar el producto usando la API REST
     url = f"{KV_REST_API_URL}/set/{key}"
     try:
@@ -156,9 +157,11 @@ def save_product(product):
         if response.status_code == 200:
             print(f"Producto {key} guardado exitosamente.")
             
-            # Agregar la clave del producto a la lista "products"
+            # Agregar la clave del producto a la lista "products" correctamente como una cadena
             url_push = f"{KV_REST_API_URL}/rpush/products"
+            # Guardar solo el nombre de la clave sin la estructura de diccionario
             requests.post(url_push, json={"value": key}, headers=headers)
+            print(f"Clave {key} agregada a la lista 'products'.")
         else:
             print(f"Error al guardar {key}: {response.status_code}, {response.text}")
     except Exception as e:
@@ -182,11 +185,26 @@ def load_tags():
 
 # Función para guardar los tags en la API REST
 def save_tags(tags):
+    # Eliminar la lista anterior de tags
     url_delete = f"{KV_REST_API_URL}/del/tags"
-    requests.post(url_delete, headers=headers)  # Eliminar los tags anteriores
+    requests.post(url_delete, headers=headers)
+
     for tag in tags:
+        # Agregar cada tag como una cadena, no como un diccionario
         url_push = f"{KV_REST_API_URL}/rpush/tags"
         requests.post(url_push, json={"value": tag}, headers=headers)
+
+def delete_incorrect_keys():
+    url_lrange = f"{KV_REST_API_URL}/lrange/products/0/-1"
+    response = requests.get(url_lrange, headers=headers)
+    if response.status_code == 200:
+        keys = response.json().get('result', [])
+        # Buscar claves con formato incorrecto y eliminarlas
+        for key in keys:
+            if key.startswith('{"value":'):
+                url_lrem = f"{KV_REST_API_URL}/lrem/products/1/{key}"
+                requests.post(url_lrem, headers=headers)
+                print(f"Clave incorrecta eliminada: {key}")
 
 @app.route('/')
 def index():
