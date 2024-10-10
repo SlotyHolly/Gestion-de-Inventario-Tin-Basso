@@ -3,3 +3,4 @@ werkzeug==3.0.4
 gunicorn==20.1.0
 Pillow==10.4.0
 redis==5.1.1
+requests==2.32.2
