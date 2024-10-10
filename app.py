@@ -66,16 +66,21 @@ def generate_filename(nombre_producto, extension):
     nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
     return f"{nombre_seguro}.{extension}"
 
-# Función para cargar el inventario desde KV Database
 def load_inventory():
-    keys = redis_client.keys("product:*")
     inventario = []
-    for key in keys:
-        product_data = redis_client.hgetall(key)  # Obtener el hash de cada producto
-        product_data['cantidad'] = int(product_data['cantidad'])
-        product_data['precio'] = float(product_data['precio'])
-        product_data['tags'] = product_data['tags'].split(',') if product_data['tags'] else []
-        inventario.append(product_data)
+    try:
+        # Utilizar SCAN en lugar de KEYS para reducir el impacto en el rendimiento
+        cursor, keys = redis_client.scan(match="product:*", count=100)
+        while cursor != 0:
+            for key in keys:
+                product_data = redis_client.hgetall(key)
+                product_data['cantidad'] = int(product_data['cantidad'])
+                product_data['precio'] = float(product_data['precio'])
+                product_data['tags'] = product_data['tags'].split(',') if product_data['tags'] else []
+                inventario.append(product_data)
+            cursor, keys = redis_client.scan(cursor=cursor, match="product:*", count=100)
+    except redis.ConnectionError as e:
+        print(f"Error de conexión a Redis al cargar inventario: {e}")
     return inventario
 
 # Función para guardar un producto en KV Database
