@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 base_dir = os.path.abspath(os.path.dirname(__file__))
 
 # Cargar las variables de entorno de conexión desde Vercel
-REDIS_URL = os.getenv('KV_REDIS_URL')  # Usar la variable de entorno para la URL de conexión
+REDIS_URL = os.getenv('KV_REST_API_URL')  # Usar la variable de entorno para la URL de conexión
 
 # Configurar la conexión a Redis (KV Database)
 redis_client = redis.StrictRedis.from_url(REDIS_URL, decode_responses=True)
