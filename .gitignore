@@ -1,2 +1,3 @@
-#Archivos Json  
-*.json
+#Archivos Json 
+inventario.json
+tags.json
