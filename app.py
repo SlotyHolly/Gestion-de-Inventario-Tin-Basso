@@ -75,9 +75,11 @@ def generate_filename(nombre_producto, extension):
 def load_inventory():
     inventario = []
     try:
+        redis_client.ping()  # Verificar si la conexión es válida
+        print("Conexión a Redis exitosa para cargar inventario.")
         # Utilizar SCAN en lugar de KEYS para reducir el impacto en el rendimiento
         cursor, keys = redis_client.scan(match="product:*", count=100)
-        while cursor != 0:
+        while cursor != 0 or keys:
             for key in keys:
                 product_data = redis_client.hgetall(key)
                 product_data['cantidad'] = int(product_data['cantidad'])
