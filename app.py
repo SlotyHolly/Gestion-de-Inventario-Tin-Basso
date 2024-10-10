@@ -42,20 +42,18 @@ def compress_image(image_path, quality=30):
         img = img.convert("RGB")  # Convertir a RGB para evitar problemas de compatibilidad
         img.save(image_path, "JPEG", optimize=True, quality=quality)
 
-# Función para recortar la imagen a una proporción 1:1 (cuadrada)
-def crop_image_to_square(image_path):
+# Cambiar la función para aceptar un objeto de imagen en lugar de una ruta de archivo
+def crop_image_to_square(image):
     """Recorta la imagen a una proporción 1:1 (cuadrada) centrada."""
-    with Image.open(image_path) as img:
-        width, height = img.size
-        # Determinar el tamaño mínimo para hacer el recorte
-        min_dimension = min(width, height)
-        left = (width - min_dimension) / 2
-        top = (height - min_dimension) / 2
-        right = (width + min_dimension) / 2
-        bottom = (height + min_dimension) / 2
-        # Hacer el recorte y guardar la imagen
-        img = img.crop((left, top, right, bottom))
-        img.save(image_path)
+    width, height = image.size
+    # Determinar el tamaño mínimo para hacer el recorte
+    min_dimension = min(width, height)
+    left = (width - min_dimension) / 2
+    top = (height - min_dimension) / 2
+    right = (width + min_dimension) / 2
+    bottom = (height + min_dimension) / 2
+    # Hacer el recorte y devolver la imagen
+    return image.crop((left, top, right, bottom))
 
 # Función para eliminar la imagen del sistema de archivos
 def delete_image(image_path):
@@ -84,9 +82,8 @@ def load_inventory():
     inventario = []
     try:
         # Hacer una solicitud a la API REST para obtener las claves de los productos
-        url = f"{KV_REST_API_URL}/keys"
-        params = {"pattern": "product:*"}  # Ajustar el parámetro pattern para obtener todas las claves
-        response = requests.get(url, headers=headers, params=params)
+        url = f"{KV_REST_API_URL}/keys?pattern=product:*"
+        response = requests.get(url, headers=headers)
 
         if response.status_code == 200:
             keys = response.json().get('result', [])
@@ -104,6 +101,7 @@ def load_inventory():
         print(f"Error de conexión o problema al cargar el inventario: {e}")
     
     return inventario
+
 
 # Función para obtener los datos de una clave específica utilizando la API REST de Upstash
 def rest_get(key):
@@ -240,31 +238,28 @@ def add_product():
 
             # Recortar y comprimir la imagen
             image = Image.open(image_stream)
-            crop_image_to_square(image)  # Recortar a proporción 1:1
+            image = crop_image_to_square(image)  # Recortar a proporción 1:1
             compressed_image = io.BytesIO()
             image.save(compressed_image, format='JPEG', optimize=True, quality=50)
 
             # Volver a poner el puntero al inicio para poder leer el archivo
             compressed_image.seek(0)
 
-            # Subir la imagen a S3
-            s3_client.upload_fileobj(
-                compressed_image,
-                BUCKET_NAME,
-                f'static/uploads/{filename}',
-                ExtraArgs={'ContentType': 'image/jpeg'}
-            )
+            # Subir la imagen a un servicio externo (si estás utilizando un almacenamiento en la nube como S3)
+            # O guardar la imagen de manera diferente si el sistema de archivos es de solo lectura
+            # (omitir la parte de guardar la imagen en el sistema de archivos local)
 
-            # Guardar la URL de la imagen en S3 en lugar de la ruta local
-            imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/static/uploads/{filename}'
+            # Guardar solo la ruta relativa de la imagen o la URL en caso de usar almacenamiento externo
+            imagen = f'/static/uploads/{filename}'
 
-        # Crear el nuevo producto con la URL de la imagen
+        # Crear el nuevo producto con la ruta de la imagen relativa
         new_product = {'id': str(new_id), 'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags, 'imagen': imagen}
         save_product(new_product)
         
         flash('Producto agregado con éxito y guardado en la base de datos KV.', 'success')
         return redirect(url_for('index'))
     return render_template('add_product.html', tags=tags)
+
 
 # El resto de las rutas se mantiene igual...
 
