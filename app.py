@@ -3,23 +3,17 @@ import os
 import redis
 from PIL import Image  # Importar la biblioteca Pillow para manipulación de imágenes
 from werkzeug.utils import secure_filename
+import requests
 
 # Definir la ruta base del directorio
 base_dir = os.path.abspath(os.path.dirname(__file__))
 
-# Cargar las variables de entorno de conexión desde Vercel
-REDIS_URL = os.getenv('KV_URL')  # Usar la variable de entorno para la URL de conexión
+# Cargar las variables de entorno
+KV_REST_API_URL = os.getenv('KV_REST_API_URL')
+KV_REST_API_TOKEN = os.getenv('KV_REST_API_TOKEN')
 
-# Configurar la conexión a Redis (KV Database)
-redis_client = redis.StrictRedis.from_url(
-        REDIS_URL,
-        decode_responses=True,
-        socket_timeout=10,           # Aumentar el tiempo de espera para operaciones en segundos
-        socket_connect_timeout=10,   # Aumentar el tiempo de espera para la conexión en segundos
-        retry_on_timeout=True,        # Reintentar la conexión en caso de tiempo de espera
-        ssl=True,                   # Habilitar SSL
-        ssl_cert_reqs=None          # No verificar certificados (cambiar según sea necesario)
-)
+# Headers para autenticar con la API REST
+headers = {"Authorization": f"Bearer {KV_REST_API_TOKEN}"}
 
 # Crear la aplicación Flask
 app = Flask(__name__,
@@ -74,24 +68,28 @@ def generate_filename(nombre_producto, extension):
     nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
     return f"{nombre_seguro}.{extension}"
 
+# Función para cargar el inventario usando la API REST
 def load_inventory():
-    inventario = []
+    url = f"{KV_REST_API_URL}/scan"
+    payload = {"match": "product:*", "count": 100}
     try:
-        redis_client.ping()  # Verificar si la conexión es válida
-        print("Conexión a Redis exitosa para cargar inventario.")
-        # Utilizar SCAN en lugar de KEYS para reducir el impacto en el rendimiento
-        cursor, keys = redis_client.scan(match="product:*", count=100)
-        while cursor != 0 or keys:
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code == 200:
+            keys = response.json()["result"]
+            inventario = []
             for key in keys:
-                product_data = redis_client.hgetall(key)
-                product_data['cantidad'] = int(product_data['cantidad'])
-                product_data['precio'] = float(product_data['precio'])
-                product_data['tags'] = product_data['tags'].split(',') if product_data['tags'] else []
+                product_data = requests.get(f"{KV_REST_API_URL}/hgetall/{key}", headers=headers).json()["result"]
+                product_data['cantidad'] = int(product_data.get('cantidad', 0))
+                product_data['precio'] = float(product_data.get('precio', 0.0))
+                product_data['tags'] = product_data.get('tags', "").split(',') if product_data.get('tags') else []
                 inventario.append(product_data)
-            cursor, keys = redis_client.scan(cursor=cursor, match="product:*", count=100)
-    except redis.ConnectionError as e:
-        print(f"Error de conexión a Redis al cargar inventario: {e}")
-    return inventario
+            return inventario
+        else:
+            print(f"Error al obtener inventario: {response.status_code}, {response.text}")
+            return []
+    except Exception as e:
+        print(f"Error de conexión a la API REST: {e}")
+        return []
 
 # Función para guardar un producto en KV Database
 def save_product(product):
@@ -99,16 +97,27 @@ def save_product(product):
     product['tags'] = ','.join(product['tags'])  # Convertir la lista de tags a una cadena
     redis_client.hset(key, mapping=product)
 
-# Función para cargar los tags desde KV Database
+# Función para cargar los tags usando la API REST
 def load_tags():
-    tags = redis_client.lrange("tags", 0, -1)
-    return tags
+    url = f"{KV_REST_API_URL}/lrange/tags/0/-1"
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()["result"]
+        else:
+            print(f"Error al obtener tags: {response.status_code}, {response.text}")
+            return []
+    except Exception as e:
+        print(f"Error de conexión a la API REST: {e}")
+        return []
 
-# Función para guardar los tags en KV Database
+# Función para guardar los tags en la API REST
 def save_tags(tags):
-    redis_client.delete("tags")
+    url_delete = f"{KV_REST_API_URL}/del/tags"
+    requests.post(url_delete, headers=headers)  # Eliminar los tags anteriores
     for tag in tags:
-        redis_client.rpush("tags", tag)
+        url_push = f"{KV_REST_API_URL}/rpush/tags"
+        requests.post(url_push, json={"value": tag}, headers=headers)
 
 @app.route('/')
 def index():
@@ -126,7 +135,6 @@ def index():
         inventario = [p for p in inventario if search_query in p['nombre'].lower()]
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
-
 # Ruta para agregar un nuevo tag
 @app.route('/add_tag', methods=['POST'])
 def add_tag():
