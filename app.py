@@ -82,7 +82,7 @@ def generate_filename(nombre_producto, extension):
 def load_inventory():
     inventario = []
     try:
-        # Usar lrange para obtener todas las claves de productos almacenadas en una lista
+        # Usar lrange para obtener todas las claves de productos almacenadas en una lista llamada "products"
         url = f"{KV_REST_API_URL}/lrange/products/0/-1"
         response = requests.get(url, headers=headers)
 
@@ -92,11 +92,16 @@ def load_inventory():
         if response.status_code == 200:
             keys = response.json().get('result', [])
             print(f"Claves obtenidas: {keys}")
-            
+
+            # Extraer las claves correctas si los valores devueltos tienen formato {"value": "product:1"}
+            keys = [item['value'] if isinstance(item, dict) and 'value' in item else item for item in keys]
+            print(f"Claves procesadas: {keys}")
+
             # Obtener los datos de cada clave
             for key in keys:
                 product_data = rest_get(key)
                 if product_data:
+                    print(f"Datos del producto: {product_data}")
                     product = eval(product_data)  # Convertir la cadena a diccionario
                     product['cantidad'] = int(product['cantidad'])
                     product['precio'] = float(product['precio'])
@@ -116,10 +121,16 @@ def load_inventory():
 
     return inventario
 
+
 # Función para obtener los datos de una clave específica utilizando la API REST de Upstash
 def rest_get(key):
+    # Asegurarse de que el 'key' sea una cadena sin caracteres adicionales
+    key = key.strip()  # Eliminar espacios en blanco extra en la clave
+
+    # Imprimir para depurar la clave que se va a consultar
+    print(f"Obteniendo datos de {key} con URL: {KV_REST_API_URL}/get/{key}")
+    
     url = f"{KV_REST_API_URL}/get/{key}"
-    print(f"Obteniendo datos de {key} con URL: {url}")
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -131,6 +142,7 @@ def rest_get(key):
     except Exception as e:
         print(f"Error de conexión a la API REST al obtener {key}: {e}")
         return None
+
 
 # Función para guardar un producto usando la API REST
 def save_product(product):
