@@ -72,8 +72,10 @@ def load_inventory():
     inventario = []
     try:
         # Hacer una solicitud a la API REST para obtener las claves de los productos
-        response = requests.get(f"{KV_REST_API_URL}/keys", headers=headers, params={"pattern": "product:*"})
-        
+        url = f"{KV_REST_API_URL}/keys"
+        params = {"pattern": "product:*"}  # Ajustar el parámetro pattern para obtener todas las claves
+        response = requests.get(url, headers=headers, params=params)
+
         if response.status_code == 200:
             keys = response.json().get('result', [])
             for key in keys:
