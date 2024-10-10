@@ -32,27 +32,26 @@ app = Flask(__name__,
             template_folder=os.path.join(base_dir, 'templates'),  # Ruta completa de templates
             static_folder=os.path.join(base_dir, 'static'))       # Ruta completa de static
 app.secret_key = 'supersecretkey'
-app.config['UPLOAD_FOLDER'] = 'static/uploads/'  # Carpeta para guardar las imágenes
+app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 # Función para comprimir y guardar la imagen
-def compress_image(image_path, quality=30):
-    with Image.open(image_path) as img:
-        # Comprimir y guardar la imagen
-        img = img.convert("RGB")  # Convertir a RGB para evitar problemas de compatibilidad
-        img.save(image_path, "JPEG", optimize=True, quality=quality)
+def compress_image(image, quality=30):
+    """Comprime la imagen y la guarda en un objeto de BytesIO."""
+    compressed_image = io.BytesIO()
+    image.save(compressed_image, "JPEG", optimize=True, quality=quality)
+    compressed_image.seek(0)  # Regresar al inicio para poder leerlo
+    return compressed_image
 
-# Cambiar la función para aceptar un objeto de imagen en lugar de una ruta de archivo
+# Función para recortar la imagen a una proporción 1:1 (cuadrada)
 def crop_image_to_square(image):
     """Recorta la imagen a una proporción 1:1 (cuadrada) centrada."""
     width, height = image.size
-    # Determinar el tamaño mínimo para hacer el recorte
     min_dimension = min(width, height)
     left = (width - min_dimension) / 2
     top = (height - min_dimension) / 2
     right = (width + min_dimension) / 2
     bottom = (height + min_dimension) / 2
-    # Hacer el recorte y devolver la imagen
     return image.crop((left, top, right, bottom))
 
 # Función para eliminar la imagen del sistema de archivos
@@ -69,6 +68,18 @@ def delete_image(image_path):
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
+# Función para eliminar la imagen de S3
+def delete_image_from_s3(image_url):
+    """Elimina la imagen del bucket de S3 usando la URL proporcionada."""
+    if image_url:
+        # Obtener el nombre del archivo de la URL
+        image_key = image_url.split(f"https://{BUCKET_NAME}.s3.amazonaws.com/")[-1]
+        try:
+            s3_client.delete_object(Bucket=BUCKET_NAME, Key=image_key)
+            print(f"Imagen eliminada exitosamente de S3: {image_key}")
+        except Exception as e:
+            print(f"Error al eliminar la imagen de S3: {e}")
+
 # Función para verificar si el archivo tiene una extensión permitida
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -78,6 +89,7 @@ def generate_filename(nombre_producto, extension):
     nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
     return f"{nombre_seguro}.{extension}"
 
+# Cargar inventario desde Redis y añadir URL de imágenes de S3
 def load_inventory():
     inventario = []
     try:
@@ -94,6 +106,11 @@ def load_inventory():
                     product['cantidad'] = int(product['cantidad'])
                     product['precio'] = float(product['precio'])
                     product['tags'] = product['tags'].split(',') if product['tags'] else []
+
+                    # Si el producto tiene una imagen, obtener la URL de S3
+                    if 'imagen' in product and product['imagen']:
+                        product['imagen'] = f'https://{BUCKET_NAME}.s3.amazonaws.com/{product["imagen"]}'
+                    
                     inventario.append(product)
         else:
             print(f"Error al obtener inventario: {response.status_code}, {response.text}")
@@ -132,6 +149,7 @@ def save_product(product):
             print(f"Error al guardar {key}: {response.status_code}, {response.text}")
     except Exception as e:
         print(f"Error de conexión a la API REST al guardar {key}: {e}")
+
 
 # Función para cargar los tags usando la API REST
 def load_tags():
@@ -275,7 +293,29 @@ def add_product():
         return redirect(url_for('index'))
     return render_template('add_product.html', tags=tags)
 
-# El resto de las rutas se mantiene igual...
+# Ruta para manejar la eliminación de productos y eliminar las imágenes de S3
+@app.route('/delete/<int:product_id>', methods=['POST'])
+def delete_product(product_id):
+    inventario = load_inventory()
+    producto_a_eliminar = next((p for p in inventario if p['id'] == product_id), None)
+
+    if producto_a_eliminar:
+        # Eliminar la imagen de S3 si existe
+        if 'imagen' in producto_a_eliminar and producto_a_eliminar['imagen']:
+            delete_image_from_s3(producto_a_eliminar['imagen'])
+
+        # Eliminar el producto de la base de datos
+        key = f"product:{product_id}"
+        url = f"{KV_REST_API_URL}/del/{key}"
+        response = requests.post(url, headers=headers)
+        if response.status_code == 200:
+            flash('Producto eliminado exitosamente.', 'success')
+        else:
+            flash(f'Error al eliminar el producto: {response.status_code}, {response.text}', 'danger')
+    else:
+        flash('Producto no encontrado.', 'danger')
+
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
