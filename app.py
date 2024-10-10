@@ -68,34 +68,58 @@ def generate_filename(nombre_producto, extension):
     nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
     return f"{nombre_seguro}.{extension}"
 
-# Función para cargar el inventario usando la API REST
 def load_inventory():
-    url = f"{KV_REST_API_URL}/scan"
-    payload = {"match": "product:*", "count": 100}
+    inventario = []
     try:
-        response = requests.post(url, json=payload, headers=headers)
+        # Hacer una solicitud a la API REST para obtener las claves de los productos
+        response = requests.get(f"{KV_REST_API_URL}/keys", headers=headers, params={"pattern": "product:*"})
+        
         if response.status_code == 200:
-            keys = response.json()["result"]
-            inventario = []
+            keys = response.json().get('result', [])
             for key in keys:
-                product_data = requests.get(f"{KV_REST_API_URL}/hgetall/{key}", headers=headers).json()["result"]
-                product_data['cantidad'] = int(product_data.get('cantidad', 0))
-                product_data['precio'] = float(product_data.get('precio', 0.0))
-                product_data['tags'] = product_data.get('tags', "").split(',') if product_data.get('tags') else []
-                inventario.append(product_data)
-            return inventario
+                product_data = rest_get(key)
+                if product_data:
+                    product = eval(product_data)  # Convertir la cadena a diccionario
+                    product['cantidad'] = int(product['cantidad'])
+                    product['precio'] = float(product['precio'])
+                    product['tags'] = product['tags'].split(',') if product['tags'] else []
+                    inventario.append(product)
         else:
             print(f"Error al obtener inventario: {response.status_code}, {response.text}")
-            return []
     except Exception as e:
-        print(f"Error de conexión a la API REST: {e}")
-        return []
+        print(f"Error de conexión o problema al cargar el inventario: {e}")
+    
+    return inventario
 
-# Función para guardar un producto en KV Database
+# Función para obtener los datos de una clave específica utilizando la API REST de Upstash
+def rest_get(key):
+    url = f"{KV_REST_API_URL}/get/{key}"
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()["result"]
+        else:
+            print(f"Error al obtener {key}: {response.status_code}, {response.text}")
+            return None
+    except Exception as e:
+        print(f"Error de conexión a la API REST al obtener {key}: {e}")
+        return None
+
+# Función para guardar un producto usando la API REST
 def save_product(product):
     key = f"product:{product['id']}"
     product['tags'] = ','.join(product['tags'])  # Convertir la lista de tags a una cadena
-    redis_client.hset(key, mapping=product)
+    
+    # Guardar el producto usando la API REST
+    url = f"{KV_REST_API_URL}/set/{key}"
+    try:
+        response = requests.post(url, json={"value": str(product)}, headers=headers)
+        if response.status_code == 200:
+            print(f"Producto {key} guardado exitosamente.")
+        else:
+            print(f"Error al guardar {key}: {response.status_code}, {response.text}")
+    except Exception as e:
+        print(f"Error de conexión a la API REST al guardar {key}: {e}")
 
 # Función para cargar los tags usando la API REST
 def load_tags():
@@ -147,6 +171,21 @@ def add_tag():
     else:
         flash('El tag ya existe o está vacío.', 'danger')
     return redirect(url_for('manage_tags'))
+
+@app.route('/manage_tags', methods=['GET', 'POST'])
+def manage_tags():
+    tags = load_tags()
+    if request.method == 'POST':
+        new_tag = request.form['tag']
+        if new_tag and new_tag not in tags:
+            tags.append(new_tag)
+            save_tags(tags)
+            flash('Tag agregado exitosamente.', 'success')
+        else:
+            flash('El tag ya existe o está vacío.', 'danger')
+        return redirect(url_for('manage_tags'))
+
+    return render_template('manage_tags.html', tags=tags)
 
 # Ruta para eliminar un tag
 @app.route('/delete_tag/<tag>', methods=['POST'])
