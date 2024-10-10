@@ -13,12 +13,12 @@ base_dir = os.path.abspath(os.path.dirname(__file__))
 # Configurar el cliente S3
 s3_client = boto3.client(
     's3',
-    aws_access_key_id=os.getenv('AKIAVY2PGR76BYZJXVNN'),
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
     aws_secret_access_key=os.getenv('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'),
     region_name='us-east-2'  # Cambia esto a la región que estés usando
 )
 
-BUCKET_NAME = 'gestion-de-inventario-abtech'  # Cambia esto al nombre de tu bucket de S3
+BUCKET_NAME = os.getenv('BUCKET_S3_NAME')  # Cambia esto al nombre de tu bucket de S3
 
 # Cargar las variables de entorno
 KV_REST_API_URL = os.getenv('KV_REST_API_URL')
@@ -236,30 +236,44 @@ def add_product():
             # Leer el contenido del archivo y manipularlo en memoria
             image_stream = io.BytesIO(file.read())
 
-            # Recortar y comprimir la imagen
-            image = Image.open(image_stream)
-            image = crop_image_to_square(image)  # Recortar a proporción 1:1
-            compressed_image = io.BytesIO()
-            image.save(compressed_image, format='JPEG', optimize=True, quality=50)
+            try:
+                # Abrir la imagen para manipularla
+                image = Image.open(image_stream)
+                image = crop_image_to_square(image)  # Recortar a proporción 1:1
 
-            # Volver a poner el puntero al inicio para poder leer el archivo
-            compressed_image.seek(0)
+                # Comprimir la imagen y guardarla en un nuevo stream de bytes
+                compressed_image = io.BytesIO()
+                image.save(compressed_image, format='JPEG', optimize=True, quality=50)
 
-            # Subir la imagen a un servicio externo (si estás utilizando un almacenamiento en la nube como S3)
-            # O guardar la imagen de manera diferente si el sistema de archivos es de solo lectura
-            # (omitir la parte de guardar la imagen en el sistema de archivos local)
+                # Volver a poner el puntero al inicio para poder leer el archivo
+                compressed_image.seek(0)
 
-            # Guardar solo la ruta relativa de la imagen o la URL en caso de usar almacenamiento externo
-            imagen = f'/static/uploads/{filename}'
+                # Subir la imagen a S3 usando boto3
+                s3_client.upload_fileobj(
+                    compressed_image,
+                    BUCKET_NAME,
+                    f'static/uploads/{filename}',
+                    ExtraArgs={'ContentType': 'image/jpeg'}
+                )
 
-        # Crear el nuevo producto con la ruta de la imagen relativa
+                # Construir la URL de la imagen subida
+                imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/static/uploads/{filename}'
+
+                # Mostrar un mensaje de éxito en la consola para depuración
+                print(f"Imagen subida exitosamente a S3: {imagen}")
+
+            except Exception as e:
+                print(f"Error al subir la imagen a S3: {e}")
+                flash('Hubo un error al subir la imagen a S3. Por favor, intenta de nuevo.', 'danger')
+                return redirect(url_for('add_product'))
+
+        # Crear el nuevo producto con la URL de la imagen
         new_product = {'id': str(new_id), 'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags, 'imagen': imagen}
         save_product(new_product)
         
         flash('Producto agregado con éxito y guardado en la base de datos KV.', 'success')
         return redirect(url_for('index'))
     return render_template('add_product.html', tags=tags)
-
 
 # El resto de las rutas se mantiene igual...
 
