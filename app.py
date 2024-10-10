@@ -275,7 +275,7 @@ def add_product():
                 )
 
                 # Construir la URL de la imagen subida
-                imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/static/uploads/{filename}'
+                imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/{filename}'
 
                 # Mostrar un mensaje de éxito en la consola para depuración
                 print(f"Imagen subida exitosamente a S3: {imagen}")
