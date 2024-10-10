@@ -4,9 +4,21 @@ import redis
 from PIL import Image  # Importar la biblioteca Pillow para manipulación de imágenes
 from werkzeug.utils import secure_filename
 import requests
+import io
+import boto3
 
 # Definir la ruta base del directorio
 base_dir = os.path.abspath(os.path.dirname(__file__))
+
+# Configurar el cliente S3
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv('AKIAVY2PGR76BYZJXVNN'),
+    aws_secret_access_key=os.getenv('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'),
+    region_name='us-east-2'  # Cambia esto a la región que estés usando
+)
+
+BUCKET_NAME = 'gestion-de-inventario-abtech'  # Cambia esto al nombre de tu bucket de S3
 
 # Cargar las variables de entorno
 KV_REST_API_URL = os.getenv('KV_REST_API_URL')
@@ -205,7 +217,6 @@ def delete_tag(tag):
 
     return redirect(url_for('manage_tags'))
 
-# Ruta para agregar productos usando KV Database
 @app.route('/add', methods=['GET', 'POST'])
 def add_product():
     tags = load_tags()
@@ -217,25 +228,37 @@ def add_product():
         precio = float(request.form['precio'])
         producto_tags = request.form.getlist('tags')
 
-        # Manejar la carga de la imagen
+        # Manejar la carga de la imagen usando io.BytesIO
         file = request.files['foto'] if 'foto' in request.files else None
         imagen = None
         if file and allowed_file(file.filename):
             extension = file.filename.rsplit('.', 1)[1].lower()
             filename = generate_filename(nombre, extension)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             
-            # Guardar el archivo original
-            file.save(filepath)
+            # Leer el contenido del archivo y manipularlo en memoria
+            image_stream = io.BytesIO(file.read())
 
             # Recortar y comprimir la imagen
-            crop_image_to_square(filepath)
-            compress_image(filepath, quality=50)
+            image = Image.open(image_stream)
+            crop_image_to_square(image)  # Recortar a proporción 1:1
+            compressed_image = io.BytesIO()
+            image.save(compressed_image, format='JPEG', optimize=True, quality=50)
 
-            # Guardar solo la ruta relativa de la imagen
-            imagen = os.path.join('/static/uploads', filename)
+            # Volver a poner el puntero al inicio para poder leer el archivo
+            compressed_image.seek(0)
 
-        # Crear el nuevo producto con la ruta de la imagen relativa
+            # Subir la imagen a S3
+            s3_client.upload_fileobj(
+                compressed_image,
+                BUCKET_NAME,
+                f'static/uploads/{filename}',
+                ExtraArgs={'ContentType': 'image/jpeg'}
+            )
+
+            # Guardar la URL de la imagen en S3 en lugar de la ruta local
+            imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/static/uploads/{filename}'
+
+        # Crear el nuevo producto con la URL de la imagen
         new_product = {'id': str(new_id), 'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags, 'imagen': imagen}
         save_product(new_product)
         
