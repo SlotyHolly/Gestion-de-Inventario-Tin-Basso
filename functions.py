@@ -414,7 +414,7 @@ def crop_image_to_square(image):
 def compress_image(image, quality):
     """Comprime la imagen y la guarda en un objeto de BytesIO."""
     compressed_image = io.BytesIO()
-    image.save(compressed_image, "JPG", optimize=True, quality=quality)
+    image.save(compressed_image, "JPEG", optimize=True, quality=quality)
     compressed_image.seek(0)  # Regresar al inicio para poder leerlo
     return compressed_image
 
@@ -457,6 +457,9 @@ def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
         - La URL de la imagen almacenada en S3.
     """
     try:
+        # Asegurarse de que la extensión siempre esté en minúsculas
+        extension = extension.lower()
+
         # Leer el contenido del archivo y abrir la imagen usando PIL
         image = Image.open(image_file)
         print(f"Imagen cargada exitosamente: {image_file.filename}")
@@ -486,7 +489,6 @@ def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
     except Exception as e:
         print(f"Error al guardar la imagen en S3: {e}")
         return None
-
     
 # Funcion para verificar si existe un archivo en S3
 def check_file_in_s3(product_id):
