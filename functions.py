@@ -1,19 +1,18 @@
-# functions.py
-
 import io
 from PIL import Image
 from werkzeug.utils import secure_filename
 import boto3
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Table
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Table, sessionmaker, delete, select, MetaData
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.exc import SQLAlchemyError
 
 DATABASE_URL = os.getenv('POSTGRES_URL')
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
-    
+
 engine = create_engine(DATABASE_URL)
 Base = declarative_base()
 
@@ -159,3 +158,52 @@ def delete_tag(tag_name):
         print(f"Tag '{tag_name}' eliminado de la base de datos.")
     else:
         print(f"Tag '{tag_name}' no encontrado en la base de datos.")
+
+def delete_incorrect_keys():
+    """
+    Elimina registros duplicados o incorrectos en las tablas de la base de datos.
+    """
+    try:
+        # Crear una sesión para interactuar con la base de datos
+        Session = sessionmaker(bind=engine)
+        session = Session()
+
+        # Usar MetaData para reflejar las tablas
+        metadata = MetaData()
+        metadata.reflect(bind=engine)
+
+        # Aquí asumimos que tienes una tabla llamada 'products' en la base de datos
+        products_table = metadata.tables.get('products')
+        if products_table is not None:
+            # Seleccionar todas las filas con claves incorrectas o duplicadas
+            incorrect_keys = session.execute(select([products_table.c.id]).where(products_table.c.nombre == None)).fetchall()
+
+            # Eliminar las entradas con claves incorrectas
+            for key in incorrect_keys:
+                session.execute(delete(products_table).where(products_table.c.id == key[0]))
+
+            print(f"Se eliminaron {len(incorrect_keys)} registros incorrectos de la tabla 'products'.")
+        else:
+            print("No se encontró la tabla 'products' en la base de datos.")
+
+        # Repetir el mismo proceso para la tabla 'tags'
+        tags_table = metadata.tables.get('tags')
+        if tags_table is not None:
+            # Seleccionar todas las filas con claves incorrectas o duplicadas
+            incorrect_tags = session.execute(select([tags_table.c.id]).where(tags_table.c.nombre == None)).fetchall()
+
+            # Eliminar las entradas con claves incorrectas
+            for key in incorrect_tags:
+                session.execute(delete(tags_table).where(tags_table.c.id == key[0]))
+
+            print(f"Se eliminaron {len(incorrect_tags)} registros incorrectos de la tabla 'tags'.")
+        else:
+            print("No se encontró la tabla 'tags' en la base de datos.")
+
+        # Confirmar cambios en la base de datos
+        session.commit()
+    except SQLAlchemyError as e:
+        print(f"Error al eliminar claves incorrectas: {e}")
+        session.rollback()  # Revertir los cambios en caso de error
+    finally:
+        session.close()  # Cerrar la sesión
