@@ -1,9 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, flash
 import os
 import boto3
 from sqlalchemy import Column, String, Integer, Float
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
+
 
 # Importar funciones desde el archivo 'functions.py'
 from functions import (
@@ -46,13 +47,9 @@ def index():
     # Cargar el inventario y los tags desde la base de datos
     inventario = load_inventory()  
     tags = load_tags()             
-    
-    # Agregar mensajes de depuración para ver los productos y los tags
-    print("Inventario cargado:", inventario)
-    print("Tags cargados:", tags)
 
     filtro_tags = request.args.getlist('tag')
-    search_query = request.args.get('search', '').lower()
+    search_query = request.args.get('query', '').lower()
 
     # Filtrar por tags si hay seleccionados
     if filtro_tags:
@@ -60,10 +57,8 @@ def index():
     
     # Filtrar por nombre de producto si hay búsqueda
     if search_query:
-        inventario = [p for p in inventario if search_query in p['nombre'].lower()]
-
-    # Mostrar también el inventario filtrado
-    print("Inventario después del filtrado:", inventario)
+        filtered_products = [p for p in inventario if search_query in p['nombre'].lower()]
+        return jsonify(filtered_products)
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
 
