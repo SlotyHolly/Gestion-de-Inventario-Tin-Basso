@@ -451,7 +451,7 @@ def delete_image_from_s3(image_url):
             print(f"Error al eliminar la imagen de S3: {e}")
 
 # Función para guardar la imagen en S3
-def save_image_to_s3(image_file, product_id, extension="jpg", quality=50):
+def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
 
     """
     Guarda una imagen en AWS S3 utilizando el ID del producto como nombre del archivo.
