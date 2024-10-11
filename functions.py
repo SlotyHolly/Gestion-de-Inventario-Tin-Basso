@@ -154,63 +154,76 @@ def update_product_tags(product_id, selected_tags):
     finally:
         db_session.close()
 
-'''
-Manejo de productos
-'''
-
-# Función para cargar el inventario de la base de datos
-def load_inventory():
+# Función para cargar los tags asociados a un producto
+def load_tags_for_product(product_id):
     """
-    Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
+    Carga los tags asociados a un producto específico utilizando su product_id.
     """
-    db_session = Session()
+    db_session = Session()  # Crear una nueva sesión para interactuar con la base de datos
     try:
-        # Reflejar las tablas 'products', 'tags', y 'product_tags'
+        # Reflejar las tablas 'tags' y 'product_tags'
         metadata = MetaData()
-        products = Table('products', metadata, autoload_with=db_session.bind)
         tags = Table('tags', metadata, autoload_with=db_session.bind)
         product_tags = Table('product_tags', metadata, autoload_with=db_session.bind)
 
-        # Realizar un LEFT JOIN para obtener los productos y los tags (si los tienen)
+        # Realizar una consulta para obtener los tags asociados al producto
         stmt = (
-            select(
-                products.c.id, 
-                products.c.nombre, 
-                products.c.cantidad, 
-                products.c.precio, 
-                tags.c.nombre.label('tag')
-            )
-            .select_from(products
-                         .outerjoin(product_tags, products.c.id == product_tags.c.product_id)
-                         .outerjoin(tags, tags.c.id == product_tags.c.tag_id))
+            select(tags.c.nombre)
+            .select_from(product_tags.join(tags, product_tags.c.tag_id == tags.c.id))
+            .where(product_tags.c.product_id == product_id)
         )
 
         result = db_session.execute(stmt)
 
-        # Convertir el resultado en un diccionario de productos con sus tags
-        inventario = {}
-        for row in result:
-            product_id = row.id
-            if product_id not in inventario:
-                inventario[product_id] = {
-                    'id': row.id,
-                    'nombre': row.nombre,
-                    'cantidad': row.cantidad,
-                    'precio': row.precio,
-                    'tags': []  # Inicializar lista de tags vacía
-                }
-            # Añadir el tag solo si existe
-            if row.tag:
-                inventario[product_id]['tags'].append(row.tag)
+        # Extraer los nombres de los tags
+        tags_list = [row.nombre for row in result]
+        return tags_list
 
-        # Convertir el diccionario de productos en una lista
-        return list(inventario.values())
+    except Exception as e:
+        print(f"Error al cargar los tags para el producto {product_id}: {e}")
+        return []
+    finally:
+        db_session.close()
+
+'''
+Manejo de productos
+'''
+
+# Función para cargar el inventario de la base de datos y sus tags asociados
+def load_inventory():
+    """
+    Carga el inventario de la base de datos junto con los tags asociados a cada producto.
+    """
+    db_session = Session()  # Crear una nueva sesión para interactuar con la base de datos
+    try:
+        # Reflejar la tabla 'products'
+        metadata = MetaData()
+        products = Table('products', metadata, autoload_with=db_session.bind)
+
+        # Realizar la consulta para obtener todos los productos
+        stmt = select(products)
+        result = db_session.execute(stmt)
+
+        # Convertir el resultado en una lista de diccionarios
+        inventario = []
+        for row in result:
+            product = {
+                'id': row.id,
+                'nombre': row.nombre,
+                'cantidad': row.cantidad,
+                'precio': row.precio,
+                # Llamar a la función para cargar los tags asociados a este producto
+                'tags': load_tags_for_product(row.id)
+            }
+            inventario.append(product)
+        return inventario
 
     except Exception as e:
         print(f"Error al cargar el inventario: {e}")
         return []
     finally:
         db_session.close()
+
 
 
 # Función para guardar o actualizar un producto en la base de datos
