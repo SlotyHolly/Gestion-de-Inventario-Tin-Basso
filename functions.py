@@ -60,8 +60,10 @@ def connect_db():
     """
     Conectar a la base de datos PostgreSQL usando SQLAlchemy.
     """
-    # Usar la URL de conexión de PostgreSQL desde la variable de entorno
-    DATABASE_URL = os.getenv('POSTGRES_URL')  # Asegúrate de tener esta variable configurada en tu entorno
+    DATABASE_URL = os.getenv('POSTGRES_URL')
+
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
     engine = create_engine(DATABASE_URL)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return SessionLocal
