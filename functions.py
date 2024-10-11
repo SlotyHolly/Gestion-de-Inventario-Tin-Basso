@@ -28,10 +28,9 @@ s3_client = boto3.client(
 
 BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 
-# Crear la sesión de SQLAlchemy
-session = sessionmaker(bind=engine)
-
-# Definir las tablas usando SQLAlchemy
+'''
+Definir las tablas usando SQLAlchemy
+'''
 # Tabla de asociación para productos y tags (muchos a muchos)
 product_tags = Table(
     'product_tags', Base.metadata,
@@ -39,6 +38,7 @@ product_tags = Table(
     Column('tag_id', Integer, ForeignKey('tags.id'), primary_key=True)
 )
 
+# Tabla de productos
 class Product(Base):
     __tablename__ = 'products'
     id = Column(Integer, primary_key=True)
@@ -47,6 +47,7 @@ class Product(Base):
     precio = Column(Float, nullable=False)
     tags = relationship('Tag', secondary=product_tags, back_populates='products')
 
+# Tabla de tags
 class Tag(Base):
     __tablename__ = 'tags'
     id = Column(Integer, primary_key=True)
@@ -55,6 +56,10 @@ class Tag(Base):
 
 # Crear las tablas si no existen
 Base.metadata.create_all(engine)
+
+'''
+Definir las funciones para interactuar con la base de datos
+'''
 
 # Definir la función para conectar a la base de datos
 def connect_db():
@@ -69,37 +74,84 @@ def connect_db():
     engine = create_engine(DATABASE_URL)
     
     # Crear una fábrica de sesiones para gestionar la conexión a la base de datos
-    session = sessionmaker(bind=engine)
+    db_session = Session()
     
-    return engine, session
+    return engine, db_session
+
+# Funcion para editar un producto en la base de datos
+def edit_product(product_id, product_data):
+    """
+    Edita un producto existente en la base de datos.
+
+    Args:
+        product_id (int): ID del producto a editar.
+        product_data (dict): Diccionario con los nuevos datos del producto, 
+                             que deben incluir 'nombre', 'cantidad', 'precio' y 'tags'.
+
+    Returns:
+        bool: True si la edición fue exitosa, False en caso contrario.
+        str: Mensaje de éxito o de error.
+    """
+    db_session = Session() 
+    try:
+        # Obtener el producto existente
+        product = db_session.query(Product).filter_by(id=product_id).first()
+        if not product:
+            return False, f"Producto con ID {product_id} no encontrado."
+
+        # Actualizar el producto con los nuevos datos
+        product.nombre = product_data['nombre']
+        product.cantidad = product_data['cantidad']
+        product.precio = product_data['precio']
+
+        # Manejar los tags del producto
+        product.tags = []  # Limpiar los tags actuales
+        for tag_name in product_data.get('tags', []):
+            # Buscar si el tag ya existe en la base de datos, de lo contrario, crearlo
+            tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
+            if not tag:
+                tag = Tag(nombre=tag_name)
+                db_session.add(tag)
+            product.tags.append(tag)
+
+        # Confirmar los cambios en la base de datos
+        db_session.commit()
+        return True, f"Producto '{product.nombre}' actualizado con éxito."
+
+    except SQLAlchemyError as e:
+        db_session.rollback()
+        return False, f"Error al actualizar el producto: {e}"
+
+    finally:
+        db_session.close()
 
 # Función para cargar productos desde la base de datos
 def load_product_from_db(product_id=None):
-    session = Session()
+    db_session = Session()
     try:
         if product_id:
             # Cargar un producto específico
-            product = session.query(Product).filter(Product.id == product_id).first()
+            product = db_session.query(Product).filter(Product.id == product_id).first()
             return product
         else:
             # Cargar todos los productos
-            products = session.query(Product).all()
+            products = db_session.query(Product).all()
             return products
     except Exception as e:
         print(f"Error al cargar productos de la base de datos: {e}")
         return []
     finally:
-        session.close()
+        db_session.close()
 
 # Función para eliminar un producto de la base de datos
 def delete_product_from_db(product_id):
-    session = Session()
+    db_session = Session()
     try:
         # Encontrar el producto a eliminar
-        product_to_delete = session.query(Product).filter(Product.id == product_id).first()
+        product_to_delete = db_session.query(Product).filter(Product.id == product_id).first()
         if product_to_delete:
-            session.delete(product_to_delete)
-            session.commit()
+            db_session.delete(product_to_delete)
+            db_session.commit()
             print(f"Producto con ID {product_id} eliminado exitosamente.")
             return True
         else:
@@ -107,11 +159,10 @@ def delete_product_from_db(product_id):
             return False
     except Exception as e:
         print(f"Error al eliminar producto de la base de datos: {e}")
-        session.rollback()
+        db_session.rollback()
         return False
     finally:
-        session.close()
-
+        db_session.close()
 
 # Función para comprimir y guardar la imagen
 def compress_image(image, quality=30):
@@ -153,6 +204,7 @@ def generate_filename(nombre_producto, extension):
     nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
     return f"{nombre_seguro}.{extension}"
 
+# Función para cargar el inventario de la base de datos
 def load_inventory():
     """
     Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
@@ -219,6 +271,7 @@ def save_product(product_data):
     finally:
         db_session.close()
 
+# Función para cargar tags desde la base de datos
 def load_tags():
     """
     Carga los tags desde la base de datos utilizando una sesión de SQLAlchemy.
@@ -273,7 +326,7 @@ def delete_tag(tag_name):
     """
     # Crear una sesión para trabajar con la base de datos
     db_session = Session()  # Crear una instancia de la sesión
-    
+
     tag_to_delete = db_session.query(Tag).filter_by(nombre=tag_name).first()
     if tag_to_delete:
         db_session.delete(tag_to_delete)
@@ -282,12 +335,13 @@ def delete_tag(tag_name):
     else:
         print(f"Tag '{tag_name}' no encontrado en la base de datos.")
 
+# Función para eliminar registros duplicados o incorrectos en la base de datos
 def delete_incorrect_keys():
     """
     Elimina registros duplicados o incorrectos en las tablas de la base de datos.
     """
     try:
-        session = sessionmaker(bind=engine)
+        db_session = Session()  # Crear una instancia de la sesión
 
         # Usar MetaData para reflejar las tablas
         metadata = MetaData()
@@ -297,11 +351,11 @@ def delete_incorrect_keys():
         products_table = metadata.tables.get('products')
         if products_table is not None:
             # Seleccionar todas las filas con claves incorrectas o duplicadas
-            incorrect_keys = session.execute(select([products_table.c.id]).where(products_table.c.nombre == None)).fetchall()
+            incorrect_keys = db_session.execute(select([products_table.c.id]).where(products_table.c.nombre == None)).fetchall()
 
             # Eliminar las entradas con claves incorrectas
             for key in incorrect_keys:
-                session.execute(delete(products_table).where(products_table.c.id == key[0]))
+                db_session.execute(delete(products_table).where(products_table.c.id == key[0]))
 
             print(f"Se eliminaron {len(incorrect_keys)} registros incorrectos de la tabla 'products'.")
         else:
@@ -311,20 +365,20 @@ def delete_incorrect_keys():
         tags_table = metadata.tables.get('tags')
         if tags_table is not None:
             # Seleccionar todas las filas con claves incorrectas o duplicadas
-            incorrect_tags = session.execute(select([tags_table.c.id]).where(tags_table.c.nombre == None)).fetchall()
+            incorrect_tags = db_session.execute(select([tags_table.c.id]).where(tags_table.c.nombre == None)).fetchall()
 
             # Eliminar las entradas con claves incorrectas
             for key in incorrect_tags:
-                session.execute(delete(tags_table).where(tags_table.c.id == key[0]))
+                db_session.execute(delete(tags_table).where(tags_table.c.id == key[0]))
 
             print(f"Se eliminaron {len(incorrect_tags)} registros incorrectos de la tabla 'tags'.")
         else:
             print("No se encontró la tabla 'tags' en la base de datos.")
 
         # Confirmar cambios en la base de datos
-        session.commit()
+        db_session.commit()
     except SQLAlchemyError as e:
         print(f"Error al eliminar claves incorrectas: {e}")
-        session.rollback()  # Revertir los cambios en caso de error
+        db_session.rollback()  # Revertir los cambios en caso de error
     finally:
-        session.close()  # Cerrar la sesión
+        db_session.close()  # Cerrar la sesión

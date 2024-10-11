@@ -8,7 +8,7 @@ import boto3
 from functions import (
     compress_image, crop_image_to_square, delete_image_from_s3, 
     allowed_file, generate_filename, load_inventory, 
-    save_product, load_tags, delete_product_from_db, delete_tag,load_product_from_db, save_tags
+    save_product, load_tags, delete_product_from_db, delete_tag,load_product_from_db, save_tags, edit_product
 )
 
 # Cargar las variables de entorno necesarias
@@ -49,6 +49,40 @@ def index():
         inventario = [p for p in inventario if search_query in p['nombre'].lower()]
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
+
+@app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
+def edit_product_route(product_id):
+    """
+    Ruta para editar un producto existente.
+    """
+    tags = load_tags()  # Cargar los tags disponibles desde la base de datos
+
+    # Obtener el producto actual para mostrarlo en el formulario
+    product = load_product_from_db(product_id)
+    if not product:
+        flash('Producto no encontrado.', 'danger')
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        # Obtener los datos del formulario
+        nombre = request.form['nombre']
+        cantidad = int(request.form['cantidad'])
+        precio = float(request.form['precio'])
+        producto_tags = request.form.getlist('tags')
+
+        # Crear el diccionario de datos del producto para actualizar
+        product_data = {'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags}
+
+        # Llamar a la función edit_product para realizar la actualización
+        success, message = edit_product(product_id, product_data)
+        if success:
+            flash(message, 'success')
+        else:
+            flash(message, 'danger')
+
+        return redirect(url_for('index'))
+
+    return render_template('edit_product.html', product=product, tags=tags)
 
 
 @app.route('/add_tag', methods=['POST'])
