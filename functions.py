@@ -159,7 +159,7 @@ def load_tags_for_product(product_id):
     db_session = Session()
     try:
         # Obtener las relaciones entre productos y tags
-        stmt = select([Tag.nombre]).select_from(
+        stmt = select(Tag.nombre).select_from(
             product_tags.join(Tag, Tag.id == product_tags.c.tag_id)
         ).where(product_tags.c.product_id == product_id)
         
@@ -173,6 +173,7 @@ def load_tags_for_product(product_id):
         return []
     finally:
         db_session.close()
+
 
 '''
 Manejo de productos
