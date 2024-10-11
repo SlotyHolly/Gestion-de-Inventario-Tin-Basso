@@ -258,7 +258,6 @@ def save_product(product_data):
         else:
             # Si el producto no existe, crear uno nuevo y asignarle los tags
             new_product = Product(
-                id=product_data.id,
                 nombre=product_data.nombre,
                 cantidad=product_data.cantidad,
                 precio=product_data.precio
@@ -272,8 +271,8 @@ def save_product(product_data):
                 new_product.tags.append(tag)  # Asociar el tag al nuevo producto
             
             db_session.add(new_product)
+            db_session.commit() 
             print(f"Producto '{new_product.nombre}' guardado exitosamente.")
-
         # Guardar los cambios en la base de datos
         db_session.commit()
     except Exception as e:
