@@ -128,8 +128,11 @@ def update_product_tags(product_id, selected_tags):
             print(f"Producto con ID {product_id} no encontrado.")
             return
 
-        # Limpiar los tags actuales del producto en la tabla intermedia
-        product.tags.clear()
+        # Eliminar manualmente los registros existentes en la tabla intermedia product_tags
+        db_session.execute(
+            product_tags.delete().where(product_tags.c.product_id == product_id)
+        )
+        db_session.commit()
 
         # Asignar los nuevos tags
         for tag_name in selected_tags:
@@ -142,8 +145,10 @@ def update_product_tags(product_id, selected_tags):
                 db_session.add(tag)
                 db_session.commit()  # Guardar el nuevo tag para poder relacionarlo
 
-            # Asociar el tag al producto
-            product.tags.append(tag)
+            # Insertar el nuevo registro en la tabla intermedia
+            db_session.execute(
+                product_tags.insert().values(product_id=product.id, tag_id=tag.id)
+            )
 
         # Confirmar los cambios en la base de datos
         db_session.commit()
@@ -155,6 +160,7 @@ def update_product_tags(product_id, selected_tags):
         
     finally:
         db_session.close()
+
 
 
 # Función para cargar los tags asociados a un producto específico
