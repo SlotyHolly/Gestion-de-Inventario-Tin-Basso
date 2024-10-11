@@ -210,7 +210,7 @@ def load_tags(session):
     tags_table = Table('tags', metadata, autoload_with=session.bind)
     
     # Ejecutar una consulta para obtener todos los tags
-    query = select(tags_table.c.name)  # Asumiendo que 'name' es la columna de tags
+    query = select(tags_table.c.nombre)  # Asumiendo que 'name' es la columna de tags
     result = session.execute(query)
     
     # Retornar los tags como una lista de cadenas
