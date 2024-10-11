@@ -404,7 +404,7 @@ Manejo de imágenes
 
 # Función para verificar si el archivo tiene una extensión permitida
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg'}
 
 # Función para recortar la imagen a una proporción 1:1 (cuadrada)
 def crop_image_to_square(image):
@@ -421,7 +421,7 @@ def crop_image_to_square(image):
 def compress_image(image, quality):
     """Comprime la imagen y la guarda en un objeto de BytesIO."""
     compressed_image = io.BytesIO()
-    image.save(compressed_image, "JPEG", optimize=True, quality=quality)
+    image.save(compressed_image, "JPG", optimize=True, quality=quality)
     compressed_image.seek(0)  # Regresar al inicio para poder leerlo
     return compressed_image
 
@@ -512,18 +512,22 @@ def check_file_in_s3(file_name):
         return False
     
 # Funcion para obtener una URL de imagen en S3
-def get_image_url(product_id):
+def get_image_url(product_id, expiration=3600):
     """
-    Obtiene la URL de la imagen del producto en S3.
-    
+    Genera una URL firmada para un objeto de S3.
+
     Parámetros:
-        - product_id: El ID del producto.
-    
-    Retorna:
-        - La URL de la imagen en S3 si existe, None en caso contrario.
+    - object_name: Nombre del objeto en S3 (por ejemplo, 'imagen.jpg').
+    - expiration: Tiempo en segundos hasta que la URL expire (por defecto, 1 hora).
     """
-    filename = f"{product_id}.jpg"
-    if check_file_in_s3(filename):
-        return f"https://{BUCKET_NAME}.s3.amazonaws.com/{filename}"
-    else:
-        return ""
+    object_name = f"{product_id}.jpg"
+    try:
+        # Generar la URL firmada para acceder al archivo
+        url = s3_client.generate_presigned_url('get_object',
+                                               Params={'Bucket': BUCKET_NAME,
+                                                       'Key': object_name},
+                                               ExpiresIn=expiration)
+        return url
+    except Exception as e:
+        print(f"Error al generar la URL firmada: {e}")
+        return None
