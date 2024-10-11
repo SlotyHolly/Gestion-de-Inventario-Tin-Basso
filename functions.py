@@ -71,23 +71,16 @@ def connect_db():
     return engine, db_session
 
 # Función para cargar productos desde la base de datos
-def load_product_from_db(product_id=None, load_tags=False):
+def load_product_from_db(product_id=None):
     db_session = Session()
     try:
         if product_id:
-            # Cargar un producto específico
-            if load_tags:
-                # Usar joinedload para asegurarse de que se carguen los tags asociados
-                product = db_session.query(Product).options(joinedload(Product.tags)).filter_by(id=product_id).first()
-            else:
-                product = db_session.query(Product).filter_by(id=product_id).first()
+            # Cargar un producto específico con los tags cargados de antemano
+            product = db_session.query(Product).options(joinedload(Product.tags)).filter_by(id=product_id).first()
             return product
         else:
-            # Cargar todos los productos
-            if load_tags:
-                products = db_session.query(Product).options(joinedload(Product.tags)).all()
-            else:
-                products = db_session.query(Product).all()
+            # Cargar todos los productos con los tags cargados de antemano
+            products = db_session.query(Product).options(joinedload(Product.tags)).all()
             return products
     except Exception as e:
         print(f"Error al cargar productos de la base de datos: {e}")
