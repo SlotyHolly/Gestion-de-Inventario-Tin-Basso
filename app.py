@@ -88,11 +88,11 @@ def edit_product(product_id):
         product.precio = precio
         print(f"Tags seleccionados: {selected_tags}")
         print(f"El id del producto es: {product_id}")
-        # Actualizar los tags utilizando la nueva función
-        update_product_tags(product_id, selected_tags)
 
         # Guardar los cambios en la base de datos
         save_product(product)
+        # Actualizar los tags utilizando la nueva función
+        update_product_tags(product_id, selected_tags)
         flash('Producto actualizado exitosamente.', 'success')
         return redirect(url_for('index'))
 
