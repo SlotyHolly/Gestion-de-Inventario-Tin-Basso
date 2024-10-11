@@ -7,7 +7,8 @@ import boto3
 # Importar funciones desde el archivo 'functions.py'
 from functions import (
     delete_image_from_s3, allowed_file, load_inventory, save_product, load_tags, 
-    delete_product_from_db, delete_tag, load_product_from_db, save_tags, save_image_to_s3
+    delete_product_from_db, delete_tag, load_product_from_db, save_tags, save_image_to_s3,
+    connect_db
 )
 
 # Cargar las variables de entorno necesarias
@@ -49,12 +50,6 @@ def index():
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
 
-from flask import Flask, render_template, request, redirect, url_for, flash
-from functions import load_product_from_db, save_product, load_tags, delete_product_from_db, delete_image_from_s3, connect_db, upload_image_to_s3
-
-app = Flask(__name__)
-app.secret_key = 'supersecretkey'
-
 # Ruta para editar un producto
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
@@ -78,7 +73,7 @@ def edit_product(product_id):
                 delete_image_from_s3(product['imagen'])
 
             # Subir la nueva imagen a S3
-            upload_image_to_s3(file, product_id)
+            save_image_to_s3(file, product_id)
 
         # Actualizar el resto de la información del producto
         product.nombre = nombre
