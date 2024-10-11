@@ -13,7 +13,9 @@ DATABASE_URL = os.getenv('POSTGRES_URL')
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
 
+# Configurar el motor de SQLAlchemy y la sesión
 engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
 # Configurar el cliente S3
@@ -73,13 +75,7 @@ def connect_db():
 
 # Función para cargar productos desde la base de datos
 def load_product_from_db(product_id=None):
-    """
-    Cargar productos desde la base de datos.
-    Si se proporciona un `product_id`, carga ese producto en específico.
-    Si no, retorna todos los productos en la base de datos.
-    """
-    # Conectar a la base de datos
-    engine, session = connect_db()
+    session = Session()
     try:
         if product_id:
             # Cargar un producto específico
@@ -97,11 +93,7 @@ def load_product_from_db(product_id=None):
 
 # Función para eliminar un producto de la base de datos
 def delete_product_from_db(product_id):
-    """
-    Eliminar un producto de la base de datos basado en su ID.
-    """
-    # Conectar a la base de datos
-    engine, session = connect_db()
+    session = Session()
     try:
         # Encontrar el producto a eliminar
         product_to_delete = session.query(Product).filter(Product.id == product_id).first()
@@ -119,6 +111,7 @@ def delete_product_from_db(product_id):
         return False
     finally:
         session.close()
+
 
 # Función para comprimir y guardar la imagen
 def compress_image(image, quality=30):
@@ -161,14 +154,12 @@ def generate_filename(nombre_producto, extension):
     return f"{nombre_seguro}.{extension}"
 
 # Función para cargar el inventario desde la base de datos
-def load_inventory(session):
-    """
-    Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
-    """
+def load_inventory():
+    session = Session()
     try:
-        # Crear el objeto MetaData y reflejar la tabla 'products' utilizando session.bind
+        # Reflejar la tabla 'products' usando session.bind
         metadata = MetaData()
-        products = Table('products', metadata, autoload_with=session.bind)  # Utilizar session.bind para reflejar las tablas
+        products = Table('products', metadata, autoload_with=engine)
 
         # Realizar la consulta para obtener todos los productos
         stmt = select(products)
@@ -189,40 +180,47 @@ def load_inventory(session):
     except Exception as e:
         print(f"Error al cargar el inventario: {e}")
         return []
+    finally:
+        session.close()
 
 # Función para guardar un producto en la base de datos
 def save_product(product_data):
-    """Guardar un nuevo producto en la base de datos."""
-    new_product = Product(
-        id=product_data['id'],
-        nombre=product_data['nombre'],
-        cantidad=product_data['cantidad'],
-        precio=product_data['precio']
-    )
-    
-    # Asignar tags al producto
-    for tag_name in product_data.get('tags', []):
-        tag = session.query(Tag).filter_by(nombre=tag_name).first()
-        if not tag:
-            tag = Tag(nombre=tag_name)
-        new_product.tags.append(tag)
-    
-    session.add(new_product)
-    session.commit()
-    print(f"Producto '{new_product.nombre}' guardado exitosamente.")
+    session = Session()
+    try:
+        # Crear un nuevo producto y asignarle las tags
+        new_product = Product(
+            id=product_data['id'],
+            nombre=product_data['nombre'],
+            cantidad=product_data['cantidad'],
+            precio=product_data['precio']
+        )
+        
+        # Asignar tags al producto
+        for tag_name in product_data.get('tags', []):
+            tag = session.query(Tag).filter_by(nombre=tag_name).first()
+            if not tag:
+                tag = Tag(nombre=tag_name)
+            new_product.tags.append(tag)
+        
+        session.add(new_product)
+        session.commit()
+        print(f"Producto '{new_product.nombre}' guardado exitosamente.")
+    except Exception as e:
+        print(f"Error al guardar producto en la base de datos: {e}")
+        session.rollback()
+    finally:
+        session.close()
 
 # Función para cargar los tags
-def load_tags(session):
-    """
-    Carga los tags desde la base de datos utilizando una sesión de SQLAlchemy.
-    """
+def load_tags():
+    session = Session()
     try:
-        # Crear un objeto MetaData y reflejar la tabla 'tags'
+        # Reflejar la tabla 'tags' usando session.bind
         metadata = MetaData()
-        tags_table = Table('tags', metadata, autoload_with=session.bind)  # Utilizar session.bind
+        tags_table = Table('tags', metadata, autoload_with=engine)
 
-        # Realizar la consulta usando SQLAlchemy
-        stmt = select(tags_table.c.nombre)  # Asumiendo que 'tag_name' es la columna de tags
+        # Realizar la consulta para obtener todos los tags
+        stmt = select(tags_table.c.nombre)
         result = session.execute(stmt)
 
         # Convertir el resultado en una lista de tags
@@ -232,13 +230,8 @@ def load_tags(session):
     except Exception as e:
         print(f"Error al cargar los tags: {e}")
         return []
-    except Exception as e:
-        print(f"Error al cargar los tags: {e}")
-        return []
-
-    except Exception as e:
-        print(f"Error al cargar los tags: {e}")
-        return []
+    finally:
+        session.close()
 
 # Función para guardar tags en la base de datos
 def save_tags(tags):
