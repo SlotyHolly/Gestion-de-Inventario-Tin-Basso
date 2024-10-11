@@ -121,12 +121,6 @@ def update_product_tags(product_id, selected_tags):
 
     db_session = Session()
     try:
-        # Obtener el producto a editar
-        product = db_session.query(Product).filter_by(id=product_id).first()
-
-        if not product:
-            print(f"Producto con ID {product_id} no encontrado.")
-            return
 
         # Eliminar los registros actuales en la tabla intermedia product_tags
         db_session.execute(
@@ -138,15 +132,9 @@ def update_product_tags(product_id, selected_tags):
             # Buscar el tag por nombre
             tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
 
-            # Si el tag no existe, crearlo
-            if not tag:
-                tag = Tag(nombre=tag_name)
-                db_session.add(tag)
-                db_session.flush()  # Guardar temporalmente el nuevo tag para usar su ID
-
             # Insertar el nuevo registro en la tabla intermedia
             db_session.execute(
-                product_tags.insert().values(product_id=product.id, tag_id=tag.id)
+                product_tags.insert().values(product_id=product_id, tag_id=tag.id)
             )
 
         # Confirmar los cambios en la base de datos
