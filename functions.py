@@ -264,13 +264,6 @@ def save_product(product_data):
                 precio=product_data.precio
             )
             
-            for tag_name in product_data.tags:
-                tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
-                if not tag:
-                    tag = Tag(nombre=tag_name)
-                    db_session.add(tag)
-                new_product.tags.append(tag)  # Asociar el tag al nuevo producto
-            
             db_session.add(new_product)
             db_session.commit() 
             print(f"Producto '{new_product.nombre}' guardado exitosamente.")

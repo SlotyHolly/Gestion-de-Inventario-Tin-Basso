@@ -165,7 +165,7 @@ def add_product():
         nombre = request.form['nombre']
         cantidad = int(request.form['cantidad'])
         precio = float(request.form['precio'])
-        producto_tags = request.form.getlist('tags')
+        producto_tags = request.form.getlist('tags')  # Lista de nombres de los tags seleccionados
 
         # Manejar la carga de la imagen usando io.BytesIO
         file = request.files['foto'] if 'foto' in request.files else None
@@ -181,22 +181,25 @@ def add_product():
                 flash('Hubo un error al subir la imagen a S3. Por favor, intenta de nuevo.', 'danger')
                 return redirect(url_for('add_product'))
 
-        # Crear el nuevo producto como una instancia de la clase Product
+        # Crear el nuevo producto como una instancia de la clase Product, sin incluir los tags en el constructor
         new_product = Product(
             id=new_id,
             nombre=nombre,
             cantidad=cantidad,
-            precio=precio,
-            tags=producto_tags
+            precio=precio
         )
 
         # Guardar el nuevo producto en la base de datos
-        save_product(new_product)
-        
+        save_product(new_product)  # Guardamos el producto sin los tags
+
+        # Actualizar los tags del producto utilizando la función update_product_tags
+        update_product_tags(new_id, producto_tags)
+
         flash('Producto agregado con éxito y guardado en la base de datos.', 'success')
         return redirect(url_for('index'))
     
     return render_template('add_product.html', tags=tags)
+
 
 @app.route('/delete/<int:product_id>', methods=['POST'])
 def delete_product(product_id):
