@@ -3,6 +3,9 @@ import os
 import io
 from PIL import Image  # Importar PIL para la manipulación de imágenes
 import boto3
+from sqlalchemy import Column, String, Integer, Float
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
 
 # Importar funciones desde el archivo 'functions.py'
 from functions import (
@@ -13,6 +16,14 @@ from functions import (
 
 # Cargar las variables de entorno necesarias
 BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
+
+# Tabla de productos
+class Product(Base):
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String, nullable=False)
+    cantidad = Column(Integer, nullable=False)
+    precio = Column(Float, nullable=False)
+
 
 # Configurar el cliente S3
 s3_client = boto3.client(
@@ -104,9 +115,6 @@ def edit_product(product_id):
 
     return render_template('edit_product.html', product=product, tags=tags)
 
-
-
-
 @app.route('/add_tag', methods=['POST'])
 def add_tag():
     tags = load_tags() 
@@ -164,6 +172,7 @@ def add_product():
         imagen = None
         if file and allowed_file(file.filename):
             try:
+                # Subir la imagen a S3 usando la función save_image_to_s3
                 save_image_to_s3(file, new_id)
                 print(f"Imagen subida exitosamente a S3: {imagen}")
 
@@ -172,13 +181,23 @@ def add_product():
                 flash('Hubo un error al subir la imagen a S3. Por favor, intenta de nuevo.', 'danger')
                 return redirect(url_for('add_product'))
 
-        # Crear el nuevo producto con la URL de la imagen
-        new_product = {'id': str(new_id), 'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags}
+        # Crear el nuevo producto como una instancia de la clase Product
+        new_product = Product(
+            id=new_id,
+            nombre=nombre,
+            cantidad=cantidad,
+            precio=precio,
+            tags=producto_tags
+        )
+
+        # Guardar el nuevo producto en la base de datos
         save_product(new_product)
         
         flash('Producto agregado con éxito y guardado en la base de datos.', 'success')
         return redirect(url_for('index'))
+    
     return render_template('add_product.html', tags=tags)
+
 
 
 @app.route('/delete/<int:product_id>', methods=['POST'])

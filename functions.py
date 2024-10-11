@@ -258,6 +258,7 @@ def save_product(product_data):
         else:
             # Si el producto no existe, crear uno nuevo y asignarle los tags
             new_product = Product(
+                id=product_data.id,
                 nombre=product_data.nombre,
                 cantidad=product_data.cantidad,
                 precio=product_data.precio
@@ -467,8 +468,6 @@ def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
         # Leer el contenido del archivo y abrir la imagen usando PIL
         image = Image.open(image_file)
         image = crop_image_to_square(image)  # Recortar la imagen a proporción 1:1 (opcional)
-
-        # Comprimir la imagen y guardarla en un stream de bytes
         compressed_image = compress_image(image, quality=quality)
 
         # Definir el nombre del archivo basado en el ID del producto
