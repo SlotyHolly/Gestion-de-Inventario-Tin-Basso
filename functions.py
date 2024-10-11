@@ -205,12 +205,15 @@ def load_inventory():
             # Cargar los tags asociados usando la función load_tags_for_product
             product_tags = load_tags_for_product(row.id)  # Asegúrate de que esta función esté funcionando bien
 
+            # Obtener URL de la imagen en S3
+            image_url = get_image_url(row.id)
             product = {
                 'id': row.id,
                 'nombre': row.nombre,
                 'cantidad': row.cantidad,
                 'precio': row.precio,
-                'tags': product_tags  # Usamos los tags obtenidos de load_tags_for_product
+                'tags': product_tags,
+                'image_url': image_url
             }
             inventario.append(product)
         
@@ -447,6 +450,7 @@ def delete_image_from_s3(image_url):
         except Exception as e:
             print(f"Error al eliminar la imagen de S3: {e}")
 
+# Función para guardar la imagen en S3
 def save_image_to_s3(image_file, product_id, extension="jpg", quality=50):
 
     """
@@ -506,3 +510,20 @@ def check_file_in_s3(file_name):
         return True
     except Exception as e:
         return False
+    
+# Funcion para obtener una URL de imagen en S3
+def get_image_url(product_id):
+    """
+    Obtiene la URL de la imagen del producto en S3.
+    
+    Parámetros:
+        - product_id: El ID del producto.
+    
+    Retorna:
+        - La URL de la imagen en S3 si existe, None en caso contrario.
+    """
+    filename = f"{product_id}.jpg"
+    if check_file_in_s3(filename):
+        return f"https://{BUCKET_NAME}.s3.amazonaws.com/{filename}"
+    else:
+        return ""
