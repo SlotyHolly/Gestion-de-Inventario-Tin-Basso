@@ -76,8 +76,9 @@ def edit_product(product_id):
         file = request.files['foto'] if 'foto' in request.files else None
         if file and allowed_file(file.filename):
             # Eliminar la imagen anterior de S3 si existe
-            if check_file_in_s3(file.filename):
-                delete_image_from_s3(file.filename)
+
+            if check_file_in_s3(product_id):
+                delete_image_from_s3(product_id)
 
             # Subir la nueva imagen a S3
             save_image_to_s3(file, product_id)
