@@ -37,6 +37,10 @@ def index():
     inventario = load_inventory()  
     tags = load_tags()             
     
+    # Agregar mensajes de depuración para ver los productos y los tags
+    print("Inventario cargado:", inventario)
+    print("Tags cargados:", tags)
+
     filtro_tags = request.args.getlist('tag')
     search_query = request.args.get('search', '').lower()
 
@@ -47,8 +51,12 @@ def index():
     # Filtrar por nombre de producto si hay búsqueda
     if search_query:
         inventario = [p for p in inventario if search_query in p['nombre'].lower()]
+
+    # Mostrar también el inventario filtrado
+    print("Inventario después del filtrado:", inventario)
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
+
 
 # Ruta para editar un producto
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
