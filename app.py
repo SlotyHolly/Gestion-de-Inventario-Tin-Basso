@@ -8,7 +8,8 @@ import boto3
 from functions import (
     compress_image, crop_image_to_square, delete_image_from_s3, 
     allowed_file, generate_filename, load_inventory, 
-    save_product, load_tags, delete_product_from_db, delete_tag,load_product_from_db, save_tags, edit_product
+    save_product, load_tags, delete_product_from_db, delete_tag,
+    load_product_from_db, save_tags, edit_product,save_image_to_s3
 )
 
 # Cargar las variables de entorno necesarias
@@ -50,40 +51,50 @@ def index():
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
 
+from flask import Flask, render_template, request, redirect, url_for, flash
+from functions import load_product_from_db, save_product, load_tags, delete_product_from_db, delete_image_from_s3, connect_db, upload_image_to_s3
+
+app = Flask(__name__)
+app.secret_key = 'supersecretkey'
+
+# Ruta para editar un producto
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
-    """
-    Ruta para editar un producto existente.
-    """
-    tags = load_tags()  # Cargar los tags disponibles desde la base de datos
+    session = connect_db()  # Iniciar sesión con la base de datos
+    tags = load_tags(session)  # Cargar todos los tags
 
-    # Obtener el producto actual para mostrarlo en el formulario
-    product = load_product_from_db(product_id)
-    
-    if not product:
-        flash('Producto no encontrado.', 'danger')
-        return redirect(url_for('index'))
+    # Obtener el producto a editar
+    product = load_product_from_db(product_id, session)
 
     if request.method == 'POST':
-        # Obtener los datos del formulario
         nombre = request.form['nombre']
         cantidad = int(request.form['cantidad'])
         precio = float(request.form['precio'])
-        producto_tags = request.form.getlist('tags')
+        selected_tags = request.form.getlist('tags')
 
-        # Crear el diccionario de datos del producto para actualizar
-        product_data = {'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags}
+        # Manejo de imagen
+        file = request.files['foto'] if 'foto' in request.files else None
+        if file and allowed_file(file.filename):
+            # Eliminar la imagen anterior de S3 si existe
+            if 'imagen' in product and product['imagen']:
+                delete_image_from_s3(product['imagen'])
 
-        # Llamar a la función edit_product para realizar la actualización
-        success, message = edit_product(product_id, product_data)
-        if success:
-            flash(message, 'success')
-        else:
-            flash(message, 'danger')
+            # Subir la nueva imagen a S3
+            upload_image_to_s3(file, product_id)
 
+        # Actualizar el resto de la información del producto
+        product.nombre = nombre
+        product.cantidad = cantidad
+        product.precio = precio
+        product.tags = selected_tags
+
+        # Guardar los cambios en la base de datos
+        save_product(product, session)
+        flash('Producto actualizado exitosamente.', 'success')
         return redirect(url_for('index'))
 
     return render_template('edit_product.html', product=product, tags=tags)
+
 
 
 @app.route('/add_tag', methods=['POST'])

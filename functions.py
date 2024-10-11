@@ -18,14 +18,6 @@ engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
-# Configurar el cliente S3
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-    region_name=os.getenv('AWS_REGION')
-)
-
 BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 
 '''
@@ -78,6 +70,49 @@ def connect_db():
     
     return engine, db_session
 
+# Función para cargar productos desde la base de datos
+def load_product_from_db(product_id=None):
+    db_session = Session()
+    try:
+        if product_id:
+            # Cargar un producto específico
+            product = db_session.query(Product).filter(Product.id == product_id).first()
+            return product
+        else:
+            # Cargar todos los productos
+            products = db_session.query(Product).all()
+            return products
+    except Exception as e:
+        print(f"Error al cargar productos de la base de datos: {e}")
+        return []
+    finally:
+        db_session.close()
+
+# Función para eliminar un producto de la base de datos
+def delete_product_from_db(product_id):
+    db_session = Session()
+    try:
+        # Encontrar el producto a eliminar
+        product_to_delete = db_session.query(Product).filter(Product.id == product_id).first()
+        if product_to_delete:
+            db_session.delete(product_to_delete)
+            db_session.commit()
+            print(f"Producto con ID {product_id} eliminado exitosamente.")
+            return True
+        else:
+            print(f"Producto con ID {product_id} no encontrado.")
+            return False
+    except Exception as e:
+        print(f"Error al eliminar producto de la base de datos: {e}")
+        db_session.rollback()
+        return False
+    finally:
+        db_session.close()
+
+'''
+Manejo de productos
+'''
+
 # Funcion para editar un producto en la base de datos
 def edit_product(product_id, product_data):
     """
@@ -125,85 +160,6 @@ def edit_product(product_id, product_data):
     finally:
         db_session.close()
 
-# Función para cargar productos desde la base de datos
-def load_product_from_db(product_id=None):
-    db_session = Session()
-    try:
-        if product_id:
-            # Cargar un producto específico
-            product = db_session.query(Product).filter(Product.id == product_id).first()
-            return product
-        else:
-            # Cargar todos los productos
-            products = db_session.query(Product).all()
-            return products
-    except Exception as e:
-        print(f"Error al cargar productos de la base de datos: {e}")
-        return []
-    finally:
-        db_session.close()
-
-# Función para eliminar un producto de la base de datos
-def delete_product_from_db(product_id):
-    db_session = Session()
-    try:
-        # Encontrar el producto a eliminar
-        product_to_delete = db_session.query(Product).filter(Product.id == product_id).first()
-        if product_to_delete:
-            db_session.delete(product_to_delete)
-            db_session.commit()
-            print(f"Producto con ID {product_id} eliminado exitosamente.")
-            return True
-        else:
-            print(f"Producto con ID {product_id} no encontrado.")
-            return False
-    except Exception as e:
-        print(f"Error al eliminar producto de la base de datos: {e}")
-        db_session.rollback()
-        return False
-    finally:
-        db_session.close()
-
-# Función para comprimir y guardar la imagen
-def compress_image(image, quality=30):
-    """Comprime la imagen y la guarda en un objeto de BytesIO."""
-    compressed_image = io.BytesIO()
-    image.save(compressed_image, "JPEG", optimize=True, quality=quality)
-    compressed_image.seek(0)  # Regresar al inicio para poder leerlo
-    return compressed_image
-
-# Función para recortar la imagen a una proporción 1:1 (cuadrada)
-def crop_image_to_square(image):
-    """Recorta la imagen a una proporción 1:1 (cuadrada) centrada."""
-    width, height = image.size
-    min_dimension = min(width, height)
-    left = (width - min_dimension) / 2
-    top = (height - min_dimension) / 2
-    right = (width + min_dimension) / 2
-    bottom = (height + min_dimension) / 2
-    return image.crop((left, top, right, bottom))
-
-# Función para eliminar la imagen de S3
-def delete_image_from_s3(image_url):
-    """Elimina la imagen del bucket de S3 usando la URL proporcionada."""
-    if image_url:
-        # Obtener el nombre del archivo de la URL
-        image_key = image_url.split(f"https://{BUCKET_NAME}.s3.amazonaws.com/")[-1]
-        try:
-            s3_client.delete_object(Bucket=BUCKET_NAME, Key=image_key)
-            print(f"Imagen eliminada exitosamente de S3: {image_key}")
-        except Exception as e:
-            print(f"Error al eliminar la imagen de S3: {e}")
-
-# Función para verificar si el archivo tiene una extensión permitida
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
-
-# Función para generar un nombre de archivo basado en el nombre del producto
-def generate_filename(nombre_producto, extension):
-    nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
-    return f"{nombre_seguro}.{extension}"
-
 # Función para cargar el inventario de la base de datos
 def load_inventory():
     """
@@ -238,38 +194,62 @@ def load_inventory():
     finally:
         db_session.close()
 
-# Función para guardar un producto en la base de datos
+# Función para guardar o actualizar un producto en la base de datos
 def save_product(product_data):
-
     """
-    Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
+    Guarda o actualiza un producto en la base de datos utilizando la sesión de SQLAlchemy.
+    Si el producto ya existe (por ID), se actualizan sus valores.
+    Si no existe, se crea uno nuevo.
     """
-
-    db_session = Session()
+    db_session = Session()  # Crear una nueva sesión para interactuar con la base de datos
     try:
-        # Crear un nuevo producto y asignarle las tags
-        new_product = Product(
-            id=product_data['id'],
-            nombre=product_data['nombre'],
-            cantidad=product_data['cantidad'],
-            precio=product_data['precio']
-        )
-        
-        # Asignar tags al producto
-        for tag_name in product_data.get('tags', []):
-            tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
-            if not tag:
-                tag = Tag(nombre=tag_name)
-            new_product.tags.append(tag)
-        
-        db_session.add(new_product)
+        # Intentar cargar el producto existente basado en el ID
+        existing_product = db_session.query(Product).filter_by(id=product_data['id']).first()
+
+        if existing_product:
+            # Si el producto ya existe, actualizar sus campos
+            existing_product.nombre = product_data['nombre']
+            existing_product.cantidad = product_data['cantidad']
+            existing_product.precio = product_data['precio']
+            
+            # Actualizar tags
+            existing_product.tags.clear()  # Eliminar las tags actuales para reasignarlas
+            for tag_name in product_data.get('tags', []):
+                tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
+                if not tag:
+                    tag = Tag(nombre=tag_name)
+                existing_product.tags.append(tag)
+
+            print(f"Producto '{existing_product.nombre}' actualizado exitosamente.")
+        else:
+            # Si el producto no existe, crear uno nuevo y asignarle los tags
+            new_product = Product(
+                id=product_data['id'],
+                nombre=product_data['nombre'],
+                cantidad=product_data['cantidad'],
+                precio=product_data['precio']
+            )
+            
+            for tag_name in product_data.get('tags', []):
+                tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
+                if not tag:
+                    tag = Tag(nombre=tag_name)
+                new_product.tags.append(tag)
+            
+            db_session.add(new_product)
+            print(f"Producto '{new_product.nombre}' guardado exitosamente.")
+
+        # Guardar los cambios en la base de datos
         db_session.commit()
-        print(f"Producto '{new_product.nombre}' guardado exitosamente.")
     except Exception as e:
-        print(f"Error al guardar producto en la base de datos: {e}")
+        print(f"Error al guardar/actualizar producto en la base de datos: {e}")
         db_session.rollback()
     finally:
         db_session.close()
+
+'''
+Manejo de tags
+'''
 
 # Función para cargar tags desde la base de datos
 def load_tags():
@@ -382,3 +362,96 @@ def delete_incorrect_keys():
         db_session.rollback()  # Revertir los cambios en caso de error
     finally:
         db_session.close()  # Cerrar la sesión
+
+'''
+Manejo de imágenes
+'''
+
+# Función para verificar si el archivo tiene una extensión permitida
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
+
+# Función para recortar la imagen a una proporción 1:1 (cuadrada)
+def crop_image_to_square(image):
+    """Recorta la imagen a una proporción 1:1 (cuadrada) centrada."""
+    width, height = image.size
+    min_dimension = min(width, height)
+    left = (width - min_dimension) / 2
+    top = (height - min_dimension) / 2
+    right = (width + min_dimension) / 2
+    bottom = (height + min_dimension) / 2
+    return image.crop((left, top, right, bottom))
+
+# Función para comprimir y guardar la imagen
+def compress_image(image, quality):
+    """Comprime la imagen y la guarda en un objeto de BytesIO."""
+    compressed_image = io.BytesIO()
+    image.save(compressed_image, "JPEG", optimize=True, quality=quality)
+    compressed_image.seek(0)  # Regresar al inicio para poder leerlo
+    return compressed_image
+
+'''
+Manejo de AWS S3
+'''
+# Configurar el cliente S3
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.getenv('AWS_REGION')
+)
+
+# Función para eliminar la imagen de S3
+def delete_image_from_s3(image_url):
+    """Elimina la imagen del bucket de S3 usando la URL proporcionada."""
+    if image_url:
+        # Obtener el nombre del archivo de la URL
+        image_key = image_url.split(f"https://{BUCKET_NAME}.s3.amazonaws.com/")[-1]
+        try:
+            s3_client.delete_object(Bucket=BUCKET_NAME, Key=image_key)
+            print(f"Imagen eliminada exitosamente de S3: {image_key}")
+        except Exception as e:
+            print(f"Error al eliminar la imagen de S3: {e}")
+
+def save_image_to_s3(image_file, product_id, extension="jpg", quality=50):
+
+    """
+    Guarda una imagen en AWS S3 utilizando el ID del producto como nombre del archivo.
+    
+    Parámetros:
+        - image_file: El archivo de imagen cargado (objeto file) desde el formulario.
+        - product_id: ID del producto (usado como nombre del archivo en S3).
+        - extension: Extensión del archivo (por defecto es 'jpg').
+        - quality: Calidad de la compresión de la imagen (por defecto es 50).
+    
+    Retorna:
+        - La URL de la imagen almacenada en S3.
+    """
+    try:
+        # Leer el contenido del archivo y abrir la imagen usando PIL
+        image = Image.open(image_file)
+        image = crop_image_to_square(image)  # Recortar la imagen a proporción 1:1 (opcional)
+
+        # Comprimir la imagen y guardarla en un stream de bytes
+        compressed_image = compress_image(image, quality=quality)
+
+        # Definir el nombre del archivo basado en el ID del producto
+        filename = f"{product_id}.{extension}"
+
+        # Subir el archivo comprimido a S3
+        s3_client.upload_fileobj(
+            compressed_image,
+            BUCKET_NAME,
+            filename,  # Guardar directamente en la raíz del bucket con el nombre del producto
+            ExtraArgs={'ContentType': f'image/{extension}'}
+        )
+
+        # Construir la URL de la imagen en S3
+        image_url = f'https://{BUCKET_NAME}.s3.amazonaws.com/{filename}'
+        print(f"Imagen guardada exitosamente en S3: {image_url}")
+
+        return image_url
+
+    except Exception as e:
+        print(f"Error al guardar la imagen en S3: {e}")
+        return None
