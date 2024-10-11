@@ -34,8 +34,8 @@ app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
 @app.route('/')
 def index():
     # Cargar el inventario y los tags desde la base de datos
-    inventario = load_inventory()  # No se le pasa 'session'
-    tags = load_tags()             # No se le pasa 'session'
+    inventario = load_inventory()  
+    tags = load_tags()             
     
     filtro_tags = request.args.getlist('tag')
     search_query = request.args.get('search', '').lower()
@@ -53,11 +53,11 @@ def index():
 # Ruta para editar un producto
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
-    session = connect_db()  # Iniciar sesión con la base de datos
-    tags = load_tags(session)  # Cargar todos los tags
+
+    tags = load_tags()  # Cargar todos los tags
 
     # Obtener el producto a editar
-    product = load_product_from_db(product_id, session)
+    product = load_product_from_db(product_id)
 
     if request.method == 'POST':
         nombre = request.form['nombre']
@@ -82,7 +82,7 @@ def edit_product(product_id):
         product.tags = selected_tags
 
         # Guardar los cambios en la base de datos
-        save_product(product, session)
+        save_product(product)
         flash('Producto actualizado exitosamente.', 'success')
         return redirect(url_for('index'))
 
@@ -92,7 +92,7 @@ def edit_product(product_id):
 
 @app.route('/add_tag', methods=['POST'])
 def add_tag():
-    tags = load_tags()  # No se le pasa 'session'
+    tags = load_tags() 
     new_tag = request.form.get('tag')
     if new_tag and new_tag not in tags:
         tags.append(new_tag)
@@ -105,7 +105,7 @@ def add_tag():
 
 @app.route('/manage_tags', methods=['GET', 'POST'])
 def manage_tags():
-    tags = load_tags()  # No se le pasa 'session'
+    tags = load_tags()
     if request.method == 'POST':
         new_tag = request.form['tag']
         if new_tag and new_tag not in tags:
@@ -125,7 +125,7 @@ def delete_tag_route(tag):
     delete_tag(tag)
 
     # Actualizar el inventario eliminando el tag de todos los productos
-    inventario = load_inventory()  # No se le pasa 'session'
+    inventario = load_inventory()
     for producto in inventario:
         if tag in producto.get('tags', []):
             producto['tags'].remove(tag)
@@ -136,9 +136,9 @@ def delete_tag_route(tag):
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_product():
-    tags = load_tags()  # No se le pasa 'session'
+    tags = load_tags()
     if request.method == 'POST':
-        inventario = load_inventory()  # No se le pasa 'session'
+        inventario = load_inventory()
         new_id = max([int(p['id']) for p in inventario], default=0) + 1
         nombre = request.form['nombre']
         cantidad = int(request.form['cantidad'])
