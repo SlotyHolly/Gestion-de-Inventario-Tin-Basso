@@ -444,7 +444,6 @@ def delete_image_from_s3(product_id):
 
 # Función para guardar la imagen en S3
 def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
-
     """
     Guarda una imagen en AWS S3 utilizando el ID del producto como nombre del archivo.
     
@@ -460,8 +459,11 @@ def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
     try:
         # Leer el contenido del archivo y abrir la imagen usando PIL
         image = Image.open(image_file)
+        print(f"Imagen cargada exitosamente: {image_file.filename}")
+
         image = crop_image_to_square(image)  # Recortar la imagen a proporción 1:1 (opcional)
         compressed_image = compress_image(image, quality=quality)
+        print("Imagen comprimida exitosamente")
 
         # Definir el nombre del archivo basado en el ID del producto
         filename = f"{product_id}.{extension}"
@@ -473,6 +475,7 @@ def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
             filename,  # Guardar directamente en la raíz del bucket con el nombre del producto
             ExtraArgs={'ContentType': f'image/{extension}'}
         )
+        print("Imagen subida exitosamente a S3")
 
         # Construir la URL de la imagen en S3
         image_url = f'https://{BUCKET_NAME}.s3.amazonaws.com/{filename}'
@@ -483,6 +486,7 @@ def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
     except Exception as e:
         print(f"Error al guardar la imagen en S3: {e}")
         return None
+
     
 # Funcion para verificar si existe un archivo en S3
 def check_file_in_s3(product_id):
