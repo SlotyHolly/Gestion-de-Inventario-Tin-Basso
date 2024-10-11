@@ -59,6 +59,7 @@ def edit_product(product_id):
 
     # Obtener el producto actual para mostrarlo en el formulario
     product = load_product_from_db(product_id)
+    
     if not product:
         flash('Producto no encontrado.', 'danger')
         return redirect(url_for('index'))
