@@ -1,14 +1,29 @@
+from wsgiref import headers
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 import os
-import sys
-# Agregar la carpeta 'static' al path para poder importar 'functions.py'
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'static'))
+import io
+from PIL import Image  # Importar PIL para la manipulación de imágenes
+import boto3
+import requests
 
-# Importar funciones desde el archivo 'functions.py' dentro de 'static'
+# Importar funciones desde el archivo 'functions.py'
 from functions import (
     compress_image, crop_image_to_square, delete_image_from_s3, 
     allowed_file, generate_filename, load_inventory, 
     rest_get, save_product, load_tags, save_tags, delete_incorrect_keys
+)
+
+# Cargar las variables de entorno necesarias
+KV_REST_API_URL = os.getenv('KV_REST_API_URL')
+KV_REST_API_TOKEN = os.getenv('KV_REST_API_TOKEN')
+BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
+
+# Configurar el cliente S3
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.getenv('AWS_REGION')
 )
 
 # Definir la ruta base del directorio
@@ -20,7 +35,8 @@ app = Flask(__name__,
             static_folder=os.path.join(base_dir, 'static'))       # Ruta completa de static
 app.secret_key = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+# Rutas y funciones de la aplicación
 
 @app.route('/')
 def index():
@@ -38,7 +54,8 @@ def index():
         inventario = [p for p in inventario if search_query in p['nombre'].lower()]
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
-# Ruta para agregar un nuevo tag
+
+
 @app.route('/add_tag', methods=['POST'])
 def add_tag():
     tags = load_tags()
@@ -50,6 +67,7 @@ def add_tag():
     else:
         flash('El tag ya existe o está vacío.', 'danger')
     return redirect(url_for('manage_tags'))
+
 
 @app.route('/manage_tags', methods=['GET', 'POST'])
 def manage_tags():
@@ -66,7 +84,7 @@ def manage_tags():
 
     return render_template('manage_tags.html', tags=tags)
 
-# Ruta para eliminar un tag
+
 @app.route('/delete_tag/<tag>', methods=['POST'])
 def delete_tag(tag):
     tags = load_tags()
@@ -81,6 +99,7 @@ def delete_tag(tag):
         save_product(product)  # Guardar productos actualizados en la base de datos
 
     return redirect(url_for('manage_tags'))
+
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_product():
@@ -109,11 +128,7 @@ def add_product():
                 image = crop_image_to_square(image)  # Recortar a proporción 1:1
 
                 # Comprimir la imagen y guardarla en un nuevo stream de bytes
-                compressed_image = io.BytesIO()
-                image.save(compressed_image, format='JPEG', optimize=True, quality=50)
-
-                # Volver a poner el puntero al inicio para poder leer el archivo
-                compressed_image.seek(0)
+                compressed_image = compress_image(image, quality=50)
 
                 # Subir la imagen a S3 usando boto3
                 s3_client.upload_fileobj(
@@ -124,9 +139,8 @@ def add_product():
                 )
 
                 # Construir la URL de la imagen subida
-                imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/{filename}'
+                imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/static/uploads/{filename}'
 
-                # Mostrar un mensaje de éxito en la consola para depuración
                 print(f"Imagen subida exitosamente a S3: {imagen}")
 
             except Exception as e:
@@ -142,7 +156,7 @@ def add_product():
         return redirect(url_for('index'))
     return render_template('add_product.html', tags=tags)
 
-# Ruta para manejar la eliminación de productos y eliminar las imágenes de S3
+
 @app.route('/delete/<int:product_id>', methods=['POST'])
 def delete_product(product_id):
     inventario = load_inventory()
@@ -166,7 +180,6 @@ def delete_product(product_id):
 
     return redirect(url_for('index'))
 
+
 if __name__ == '__main__':
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
     app.run(debug=True)
