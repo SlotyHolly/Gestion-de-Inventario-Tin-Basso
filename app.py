@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import os
-import io
-from PIL import Image  # Importar PIL para la manipulación de imágenes
 import boto3
 from sqlalchemy import Column, String, Integer, Float
 from sqlalchemy.ext.declarative import declarative_base
