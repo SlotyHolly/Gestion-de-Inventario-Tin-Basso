@@ -156,38 +156,23 @@ def update_product_tags(product_id, selected_tags):
 
 # Función para cargar los tags asociados a un producto específico
 def load_tags_for_product(product_id):
-    """
-    Carga los tags asociados a un producto desde la tabla product_tags.
-    """
-    db_session = Session()  # Crear una nueva sesión para interactuar con la base de datos
+    db_session = Session()
     try:
-        # Reflejar las tablas 'product_tags' y 'tags'
-        metadata = MetaData()
-        product_tags = Table('product_tags', metadata, autoload_with=db_session.bind)
-        tags_table = Table('tags', metadata, autoload_with=db_session.bind)
-
-        # Consultar los tag_id asociados al product_id
-        stmt = select(product_tags.c.tag_id).where(product_tags.c.product_id == product_id)
+        # Obtener las relaciones entre productos y tags
+        stmt = select([Tag.nombre]).select_from(
+            product_tags.join(Tag, Tag.id == product_tags.c.tag_id)
+        ).where(product_tags.c.product_id == product_id)
+        
         result = db_session.execute(stmt)
-
-        tag_ids = [row.tag_id for row in result]  # Lista de IDs de los tags asociados
-
-        # Si hay tag_ids, consultar los nombres de los tags correspondientes
-        if tag_ids:
-            stmt = select(tags_table.c.nombre).where(tags_table.c.id.in_(tag_ids))
-            tag_names_result = db_session.execute(stmt)
-
-            tag_names = [row.nombre for row in tag_names_result]  # Lista de nombres de los tags
-            return tag_names
-        else:
-            return []
-
+        
+        # Convertir el resultado en una lista de nombres de tags
+        tags = [row[0] for row in result]
+        return tags
     except Exception as e:
         print(f"Error al cargar los tags para el producto {product_id}: {e}")
         return []
     finally:
         db_session.close()
-
 
 '''
 Manejo de productos
