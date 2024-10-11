@@ -55,6 +55,66 @@ class Tag(Base):
 # Crear las tablas si no existen
 Base.metadata.create_all(engine)
 
+# Definir la función para conectar a la base de datos
+def connect_db():
+    """
+    Conectar a la base de datos PostgreSQL usando SQLAlchemy.
+    """
+    # Usar la URL de conexión de PostgreSQL desde la variable de entorno
+    DATABASE_URL = os.getenv('DATABASE_URL')  # Asegúrate de tener esta variable configurada en tu entorno
+    engine = create_engine(DATABASE_URL)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    return SessionLocal
+
+# Función para cargar productos desde la base de datos
+def load_product_from_db(product_id=None):
+    """
+    Cargar productos desde la base de datos.
+    Si se proporciona un `product_id`, carga ese producto en específico.
+    Si no, retorna todos los productos en la base de datos.
+    """
+    # Conectar a la base de datos
+    session = connect_db()()
+    try:
+        if product_id:
+            # Cargar un producto específico
+            product = session.query(Product).filter(Product.id == product_id).first()
+            return product
+        else:
+            # Cargar todos los productos
+            products = session.query(Product).all()
+            return products
+    except Exception as e:
+        print(f"Error al cargar productos de la base de datos: {e}")
+        return []
+    finally:
+        session.close()
+
+# Función para eliminar un producto de la base de datos
+def delete_product_from_db(product_id):
+    """
+    Eliminar un producto de la base de datos basado en su ID.
+    """
+    # Conectar a la base de datos
+    session = connect_db()()
+    try:
+        # Encontrar el producto a eliminar
+        product_to_delete = session.query(Product).filter(Product.id == product_id).first()
+        if product_to_delete:
+            session.delete(product_to_delete)
+            session.commit()
+            print(f"Producto con ID {product_id} eliminado exitosamente.")
+            return True
+        else:
+            print(f"Producto con ID {product_id} no encontrado.")
+            return False
+    except Exception as e:
+        print(f"Error al eliminar producto de la base de datos: {e}")
+        session.rollback()
+        return False
+    finally:
+        session.close()
+
 # Función para comprimir y guardar la imagen
 def compress_image(image, quality=30):
     """Comprime la imagen y la guarda en un objeto de BytesIO."""
