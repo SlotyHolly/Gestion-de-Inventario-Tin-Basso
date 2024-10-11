@@ -86,7 +86,7 @@ def edit_product(product_id):
         product.nombre = nombre
         product.cantidad = cantidad
         product.precio = precio
-        Flask('Los tags seleccionados son:', selected_tags)
+        flash(f'Los tags seleccionados son: {", ".join(selected_tags)}', 'info')
         # Actualizar los tags utilizando la nueva función
         update_product_tags(product_id, selected_tags)
 
