@@ -19,6 +19,7 @@ BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 
 # Tabla de productos
 class Product(Base):
+    __tablename__ = 'productos'
     id = Column(Integer, primary_key=True)
     nombre = Column(String, nullable=False)
     cantidad = Column(Integer, nullable=False)
@@ -67,7 +68,6 @@ def index():
     print("Inventario después del filtrado:", inventario)
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
-
 
 # Ruta para editar un producto
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
@@ -198,8 +198,6 @@ def add_product():
     
     return render_template('add_product.html', tags=tags)
 
-
-
 @app.route('/delete/<int:product_id>', methods=['POST'])
 def delete_product(product_id):
     # Eliminar el producto de la base de datos y la imagen asociada de S3
@@ -217,7 +215,6 @@ def delete_product(product_id):
         flash('Producto no encontrado.', 'danger')
 
     return redirect(url_for('index'))
-
 
 if __name__ == '__main__':
     app.run(debug=True)
