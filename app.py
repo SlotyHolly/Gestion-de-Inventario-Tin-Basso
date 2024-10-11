@@ -37,23 +37,30 @@ app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
 
 @app.route('/')
 def index():
-    conn, cursor = connect_db()
-    inventario = load_inventory(cursor)
-    tags = load_tags(cursor)
-    filtro_tags = request.args.getlist('tag')
-    search_query = request.args.get('search', '').lower()
+    # Obtener la sesión de la base de datos
+    session, engine = connect_db()
 
-    # Filtrar por tags si hay seleccionados
-    if filtro_tags:
-        inventario = [p for p in inventario if any(tag in p.get('tags', []) for tag in filtro_tags)]
-    
-    # Filtrar por nombre de producto si hay búsqueda
-    if search_query:
-        inventario = [p for p in inventario if search_query in p['nombre'].lower()]
-    
-    cursor.close()
-    conn.close()
-    return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
+    try:
+        # Obtener inventario y tags desde la base de datos
+        inventario = load_inventory(session)
+        tags = load_tags(session)
+
+        # Filtrar por tags si hay seleccionados
+        filtro_tags = request.args.getlist('tag')
+        search_query = request.args.get('search', '').lower()
+
+        if filtro_tags:
+            inventario = [p for p in inventario if any(tag in p.get('tags', []) for tag in filtro_tags)]
+        
+        # Filtrar por nombre de producto si hay búsqueda
+        if search_query:
+            inventario = [p for p in inventario if search_query in p['nombre'].lower()]
+
+        return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
+
+    finally:
+        # Cerrar la sesión al finalizar
+        session.close()
 
 
 @app.route('/add_tag', methods=['POST'])

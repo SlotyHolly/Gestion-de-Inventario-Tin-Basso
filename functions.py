@@ -63,10 +63,16 @@ def connect_db():
     DATABASE_URL = os.getenv('POSTGRES_URL')
 
     if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    # Crear el motor de la base de datos
     engine = create_engine(DATABASE_URL)
+    
+    # Crear una sesión local utilizando el motor creado
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    return SessionLocal
+    
+    # Crear una sesión de SQLAlchemy y devolverla
+    session = SessionLocal()
+    return session, engine
 
 # Función para cargar productos desde la base de datos
 def load_product_from_db(product_id=None):
