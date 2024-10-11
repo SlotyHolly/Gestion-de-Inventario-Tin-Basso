@@ -1,16 +1,18 @@
-# app.py
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, flash
 import os
-import sys
 import io
-from PIL import Image
+from PIL import Image  # Importar PIL para la manipulación de imágenes
 import boto3
+
+# Importar funciones desde el archivo 'functions.py'
 from functions import (
     compress_image, crop_image_to_square, delete_image_from_s3, 
     allowed_file, generate_filename, load_inventory, 
-    save_product, load_tags, save_tags, delete_incorrect_keys, 
-    connect_db, delete_product_from_db, load_product_from_db
+    save_product, load_tags, delete_product_from_db, delete_tag,load_product_from_db, save_tags
 )
+
+# Cargar las variables de entorno necesarias
+BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 
 # Configurar el cliente S3
 s3_client = boto3.client(
@@ -20,19 +22,10 @@ s3_client = boto3.client(
     region_name=os.getenv('AWS_REGION')
 )
 
-BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
-DATABASE_URL = os.getenv('POSTGRES_URL')
-
-# Obtener la sesión de la base de datos
-engine, session = connect_db()
-
-# Definir la ruta base del directorio
-base_dir = os.path.abspath(os.path.dirname(__file__))
-
 # Crear la aplicación Flask
 app = Flask(__name__,
-            template_folder=os.path.join(base_dir, 'templates'),  # Ruta completa de templates
-            static_folder=os.path.join(base_dir, 'static'))       # Ruta completa de static
+            template_folder=os.path.join(os.path.dirname(__file__), 'templates'),  # Ruta completa de templates
+            static_folder=os.path.join(os.path.dirname(__file__), 'static'))       # Ruta completa de static
 app.secret_key = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
 
@@ -40,53 +33,45 @@ app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
 
 @app.route('/')
 def index():
+    # Cargar el inventario y los tags desde la base de datos
+    inventario = load_inventory()  # No se le pasa 'session'
+    tags = load_tags()             # No se le pasa 'session'
+    
+    filtro_tags = request.args.getlist('tag')
+    search_query = request.args.get('search', '').lower()
 
-    try:
-        # Obtener inventario y tags desde la base de datos
-        inventario = load_inventory(session)
-        tags = load_tags(session)
-
-        # Filtrar por tags si hay seleccionados
-        filtro_tags = request.args.getlist('tag')
-        search_query = request.args.get('search', '').lower()
-
-        if filtro_tags:
-            inventario = [p for p in inventario if any(tag in p.get('tags', []) for tag in filtro_tags)]
-        
-        # Filtrar por nombre de producto si hay búsqueda
-        if search_query:
-            inventario = [p for p in inventario if search_query in p['nombre'].lower()]
-
-        return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
-
-    finally:
-        # Cerrar la sesión al finalizar
-        session.close()
+    # Filtrar por tags si hay seleccionados
+    if filtro_tags:
+        inventario = [p for p in inventario if any(tag in p.get('tags', []) for tag in filtro_tags)]
+    
+    # Filtrar por nombre de producto si hay búsqueda
+    if search_query:
+        inventario = [p for p in inventario if search_query in p['nombre'].lower()]
+    
+    return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
 
 
 @app.route('/add_tag', methods=['POST'])
 def add_tag():
-    conn, cursor = connect_db()
-    tags = load_tags(cursor)
+    tags = load_tags()  # No se le pasa 'session'
     new_tag = request.form.get('tag')
     if new_tag and new_tag not in tags:
         tags.append(new_tag)
-        save_tags(cursor, conn, tags)
+        save_tags(tags)
         flash('Tag agregado exitosamente.', 'success')
     else:
         flash('El tag ya existe o está vacío.', 'danger')
-    cursor.close()
-    conn.close()
     return redirect(url_for('manage_tags'))
+
 
 @app.route('/manage_tags', methods=['GET', 'POST'])
 def manage_tags():
-    tags = load_tags(session)  # Pasar la sesión correcta a load_tags
+    tags = load_tags()  # No se le pasa 'session'
     if request.method == 'POST':
         new_tag = request.form['tag']
         if new_tag and new_tag not in tags:
             tags.append(new_tag)
-            save_tags(session, tags)  # Actualiza los tags en la base de datos
+            save_tags(tags)
             flash('Tag agregado exitosamente.', 'success')
         else:
             flash('El tag ya existe o está vacío.', 'danger')
@@ -96,30 +81,25 @@ def manage_tags():
 
 
 @app.route('/delete_tag/<tag>', methods=['POST'])
-def delete_tag(tag):
-    conn, cursor = connect_db()
-    tags = load_tags(cursor)
-    tags = [t for t in tags if t != tag]  # Filtrar el tag
-    save_tags(cursor, conn, tags)  # Guardar tags actualizados
+def delete_tag_route(tag):
+    # Utilizar la función `delete_tag` para eliminar un tag de la base de datos
+    delete_tag(tag)
 
-    inventario = load_inventory(cursor)
+    # Actualizar el inventario eliminando el tag de todos los productos
+    inventario = load_inventory()  # No se le pasa 'session'
     for producto in inventario:
         if tag in producto.get('tags', []):
             producto['tags'].remove(tag)
-    for product in inventario:
-        save_product(cursor, conn, product)  # Guardar productos actualizados en la base de datos
+        save_product(producto)
 
-    cursor.close()
-    conn.close()
     return redirect(url_for('manage_tags'))
 
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_product():
-    conn, cursor = connect_db()
-    tags = load_tags(cursor)
+    tags = load_tags()  # No se le pasa 'session'
     if request.method == 'POST':
-        inventario = load_inventory(cursor)
+        inventario = load_inventory()  # No se le pasa 'session'
         new_id = max([int(p['id']) for p in inventario], default=0) + 1
         nombre = request.form['nombre']
         cantidad = int(request.form['cantidad'])
@@ -160,27 +140,21 @@ def add_product():
             except Exception as e:
                 print(f"Error al subir la imagen a S3: {e}")
                 flash('Hubo un error al subir la imagen a S3. Por favor, intenta de nuevo.', 'danger')
-                cursor.close()
-                conn.close()
                 return redirect(url_for('add_product'))
 
-        # Crear el nuevo producto
+        # Crear el nuevo producto con la URL de la imagen
         new_product = {'id': str(new_id), 'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags}
-        save_product(cursor, conn, new_product)
-
+        save_product(new_product)
+        
         flash('Producto agregado con éxito y guardado en la base de datos.', 'success')
-        cursor.close()
-        conn.close()
         return redirect(url_for('index'))
-    cursor.close()
-    conn.close()
     return render_template('add_product.html', tags=tags)
 
 
 @app.route('/delete/<int:product_id>', methods=['POST'])
 def delete_product(product_id):
-    conn, cursor = connect_db()
-    producto_a_eliminar = load_product_from_db(cursor, product_id)
+    # Eliminar el producto de la base de datos y la imagen asociada de S3
+    producto_a_eliminar = load_product_from_db(product_id)
 
     if producto_a_eliminar:
         # Eliminar la imagen de S3 si existe
@@ -188,13 +162,11 @@ def delete_product(product_id):
             delete_image_from_s3(producto_a_eliminar['imagen'])
 
         # Eliminar el producto de la base de datos
-        delete_product_from_db(cursor, conn, product_id)
+        delete_product_from_db(product_id)
         flash('Producto eliminado exitosamente.', 'success')
     else:
         flash('Producto no encontrado.', 'danger')
 
-    cursor.close()
-    conn.close()
     return redirect(url_for('index'))
 
 
