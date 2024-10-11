@@ -23,6 +23,9 @@ s3_client = boto3.client(
 BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 DATABASE_URL = os.getenv('POSTGRES_URL')
 
+# Obtener la sesión de la base de datos
+engine, session = connect_db()
+
 # Definir la ruta base del directorio
 base_dir = os.path.abspath(os.path.dirname(__file__))
 
@@ -37,8 +40,6 @@ app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
 
 @app.route('/')
 def index():
-    # Obtener la sesión de la base de datos
-    session, engine = connect_db()
 
     try:
         # Obtener inventario y tags desde la base de datos
@@ -78,25 +79,19 @@ def add_tag():
     conn.close()
     return redirect(url_for('manage_tags'))
 
-
 @app.route('/manage_tags', methods=['GET', 'POST'])
 def manage_tags():
-    conn, cursor = connect_db()
-    tags = load_tags(cursor)
+    tags = load_tags(session)  # Pasar la sesión correcta a load_tags
     if request.method == 'POST':
         new_tag = request.form['tag']
         if new_tag and new_tag not in tags:
             tags.append(new_tag)
-            save_tags(cursor, conn, tags)
+            save_tags(session, tags)  # Actualiza los tags en la base de datos
             flash('Tag agregado exitosamente.', 'success')
         else:
             flash('El tag ya existe o está vacío.', 'danger')
-        cursor.close()
-        conn.close()
         return redirect(url_for('manage_tags'))
 
-    cursor.close()
-    conn.close()
     return render_template('manage_tags.html', tags=tags)
 
 

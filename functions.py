@@ -207,18 +207,21 @@ def load_tags(session):
     Carga los tags desde la base de datos utilizando una sesión de SQLAlchemy.
     """
     try:
-        # Crear un MetaData vinculado a la conexión actual del motor
-        metadata = MetaData(bind=session.get_bind())
-        
-        # Reflejar la tabla de 'tags' desde la base de datos
-        tags_table = Table('tags', metadata, autoload_with=session.get_bind())
+        # Crear un objeto MetaData y reflejar la tabla 'tags'
+        metadata = MetaData()
+        tags_table = Table('tags', metadata, autoload_with=session.bind)  # session.bind obtiene la conexión
 
-        # Realizar la consulta para obtener todos los tags
-        query = session.query(tags_table.c.name).all()  # Asumiendo que la columna se llama 'name'
-        
-        # Extraer los nombres de los tags en una lista
-        tags = [row[0] for row in query]
+        # Realizar la consulta usando SQLAlchemy
+        stmt = select(tags_table.c.name)  # Asumiendo que la columna se llama 'name'
+        result = session.execute(stmt)
+
+        # Convertir el resultado en una lista de tags
+        tags = [row[0] for row in result]
         return tags
+
+    except Exception as e:
+        print(f"Error al cargar los tags: {e}")
+        return []
 
     except Exception as e:
         print(f"Error al cargar los tags: {e}")
