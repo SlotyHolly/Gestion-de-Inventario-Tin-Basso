@@ -108,7 +108,7 @@
                         productCard.className = 'product-card';
                         productCard.innerHTML = `
                             <h3>${product.nombre}</h3>
-                            ${product.imagen ? `<img src="${product.imagen}" alt="${product.nombre}" class="product-image">` : ''}
+                            ${product.image_url ? `<img src="${product.image_url}" alt="${product.nombre}" class="product-image">` : ''}
                             <p><strong>Cantidad:</strong> ${product.cantidad}</p>
                             <p><strong>Precio:</strong> $${product.precio}</p>
                             <p><strong>Tags:</strong> ${product.tags.join(', ')}</p>
