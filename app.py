@@ -102,7 +102,6 @@ def add_tag():
         flash('El tag ya existe o está vacío.', 'danger')
     return redirect(url_for('manage_tags'))
 
-
 @app.route('/manage_tags', methods=['GET', 'POST'])
 def manage_tags():
     tags = load_tags()
@@ -118,7 +117,6 @@ def manage_tags():
 
     return render_template('manage_tags.html', tags=tags)
 
-
 @app.route('/delete_tag/<string:tag>', methods=['POST'])
 def delete_tag_route(tag):
     # Utilizar la función `delete_tag` para eliminar un tag de la base de datos
@@ -132,7 +130,6 @@ def delete_tag_route(tag):
         save_product(producto)
 
     return redirect(url_for('manage_tags'))
-
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_product():

@@ -7,24 +7,24 @@
         <form method="POST" enctype="multipart/form-data" class="form-container">
             <div class="form-group">
                 <label for="nombre">Nombre del Producto</label>
-                <input type="text" id="nombre" name="nombre" value="{{ producto.nombre if producto else '' }}" required class="form-input">
+                <input type="text" id="nombre" name="nombre" value="{{ product.nombre if product else '' }}" required class="form-input">
             </div>
 
             <div class="form-group">
                 <label for="cantidad">Cantidad</label>
-                <input type="number" id="cantidad" name="cantidad" value="{{ producto.cantidad if producto else '' }}" required class="form-input">
+                <input type="number" id="cantidad" name="cantidad" value="{{ product.cantidad if product else '' }}" required class="form-input">
             </div>
 
             <div class="form-group">
                 <label for="precio">Precio</label>
-                <input type="number" id="precio" name="precio" step="0.01" value="{{ producto.precio if producto else '' }}" required class="form-input">
+                <input type="number" id="precio" name="precio" step="0.01" value="{{ product.precio if product else '' }}" required class="form-input">
             </div>
 
             <div class="form-group">
                 <label for="foto">Foto del Producto</label>
                 <input type="file" id="foto" name="foto" class="form-input">
-                {% if producto.imagen %}
-                    <img src="{{producto.imagen}}" alt="Imagen del producto" style="max-width: 200px; margin-top: 10px;">
+                {% if product.imagen %}
+                    <img src="{{product.imagen}}" alt="Imagen del producto" style="max-width: 200px; margin-top: 10px;">
                 {% endif %}
             </div>
 
@@ -32,14 +32,14 @@
                 <h3>Seleccionar Tags</h3>
                 <div class="tags-filter">
                     {% for tag in tags %}
-                    <label class="filter-tag {% if producto and tag in producto.tags %}active{% endif %}">
-                        <input type="checkbox" name="tags" value="{{ tag }}" {% if producto and tag in producto.tags %}checked{% endif %}> {{ tag }}
+                    <label class="filter-tag {% if product and tag in product.tags %}active{% endif %}">
+                        <input type="checkbox" name="tags" value="{{ tag }}" {% if product and tag in product.tags %}checked{% endif %}> {{ tag }}
                     </label>
                     {% endfor %}
                 </div>
             </div>
 
-            <button type="submit" class="button">{{ 'Agregar' if not producto else 'Guardar Cambios' }}</button>
+            <button type="submit" class="button">{{ 'Agregar' if not product else 'Guardar Cambios' }}</button>
         </form>
         <a href="{{ url_for('index') }}" class="button">Volver</a>
     </div>
