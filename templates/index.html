@@ -28,15 +28,15 @@
 
         <!-- Mostrar productos del inventario -->
         <div id="product-cards-container" class="product-cards-container">
-            {% for producto in inventario %}
+            {% for product in inventario %}
             <div class="product-card">
-                <h3>{{ producto.nombre }}</h3>
-                {% if producto.imagen %}
-                <img src="{{product.imagen}}" alt="{{ producto.nombre }}" class="product-image">
+                <h3>{{ product.nombre }}</h3>
+                {% if product.imagen %}
+                <img src="{{product.imagen}}" alt="{{ product.nombre }}" class="product-image">
                 {% endif %}
-                <p><strong>Cantidad:</strong> {{ producto.cantidad }}</p>
-                <p><strong>Precio:</strong> ${{ producto.precio }}</p>
-                <p><strong>Tags:</strong> {{ ', '.join(producto.tags) }}</p>
+                <p><strong>Cantidad:</strong> {{ product.cantidad }}</p>
+                <p><strong>Precio:</strong> ${{ product.precio }}</p>
+                <p><strong>Tags:</strong> {{ ', '.join(product.tags) }}</p>
                 <div class="product-card-actions">
                     <a href="{{ url_for('edit_product', product_id=product.id) }}" class="button">Editar</a>
                     <form action="{{ url_for('delete_product', product_id=product.id) }}" method="POST" style="display:inline;">
@@ -107,18 +107,18 @@
                     if (data.length === 0) {
                         productContainer.innerHTML = '<p>No se encontraron productos.</p>';
                     } else {
-                        data.forEach(producto => {
+                        data.forEach(product => {
                             const productCard = document.createElement('div');
                             productCard.className = 'product-card';
                             productCard.innerHTML = `
-                                <h3>${producto.nombre}</h3>
-                                ${producto.imagen ? `<img src="${producto.imagen}" alt="${producto.nombre}" class="product-image">` : ''}
-                                <p><strong>Cantidad:</strong> ${producto.cantidad}</p>
-                                <p><strong>Precio:</strong> $${producto.precio}</p>
-                                <p><strong>Tags:</strong> ${producto.tags.join(', ')}</p>
+                                <h3>${product.nombre}</h3>
+                                ${product.imagen ? `<img src="${product.imagen}" alt="${product.nombre}" class="product-image">` : ''}
+                                <p><strong>Cantidad:</strong> ${product.cantidad}</p>
+                                <p><strong>Precio:</strong> $${product.precio}</p>
+                                <p><strong>Tags:</strong> ${product.tags.join(', ')}</p>
                                 <div class="product-card-actions">
-                                    <a href="/edit/${producto.id}" class="button">Editar</a>
-                                    <form action="/delete/${producto.id}" method="POST" style="display:inline;">
+                                    <a href="/edit/${product.id}" class="button">Editar</a>
+                                    <form action="/delete/${product.id}" method="POST" style="display:inline;">
                                         <button type="submit" class="button-delete">Eliminar</button>
                                     </form>
                                 </div>
