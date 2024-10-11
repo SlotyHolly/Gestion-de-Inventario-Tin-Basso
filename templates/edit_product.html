@@ -3,7 +3,7 @@
 {% block content %}
 <div class="main-container">
     <h2>Editar Producto</h2>
-    <form method="POST" action="{{ url_for('edit_product_route', product_id=product.id) }}" enctype="multipart/form-data">
+    <form method="POST" action="{{ url_for('edit_product', product_id=product.id) }}" enctype="multipart/form-data">
         <label for="nombre">Nombre del Producto:</label>
         <input type="text" id="nombre" name="nombre" value="{{ product.nombre }}">
 
