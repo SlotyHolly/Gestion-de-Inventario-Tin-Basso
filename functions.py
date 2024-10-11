@@ -165,13 +165,13 @@ def load_inventory():
     """
     db_session = Session()
     try:
-        # Reflejar las tablas 'products', 'tags', y 'product_tags' usando SQLAlchemy
+        # Reflejar las tablas 'products', 'tags', y 'product_tags'
         metadata = MetaData()
         products = Table('products', metadata, autoload_with=db_session.bind)
         tags = Table('tags', metadata, autoload_with=db_session.bind)
         product_tags = Table('product_tags', metadata, autoload_with=db_session.bind)
 
-        # Realizar la consulta para obtener los productos y sus tags asociados
+        # Realizar un LEFT JOIN para obtener los productos y los tags (si los tienen)
         stmt = (
             select(
                 products.c.id, 
@@ -180,7 +180,9 @@ def load_inventory():
                 products.c.precio, 
                 tags.c.nombre.label('tag')
             )
-            .select_from(products.join(product_tags).join(tags))
+            .select_from(products
+                         .outerjoin(product_tags, products.c.id == product_tags.c.product_id)
+                         .outerjoin(tags, tags.c.id == product_tags.c.tag_id))
         )
 
         result = db_session.execute(stmt)
@@ -195,9 +197,11 @@ def load_inventory():
                     'nombre': row.nombre,
                     'cantidad': row.cantidad,
                     'precio': row.precio,
-                    'tags': []
+                    'tags': []  # Inicializar lista de tags vacía
                 }
-            inventario[product_id]['tags'].append(row.tag)
+            # Añadir el tag solo si existe
+            if row.tag:
+                inventario[product_id]['tags'].append(row.tag)
 
         # Convertir el diccionario de productos en una lista
         return list(inventario.values())
@@ -207,7 +211,6 @@ def load_inventory():
         return []
     finally:
         db_session.close()
-
 
 
 # Función para guardar o actualizar un producto en la base de datos
