@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 import boto3
 import os
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Table, delete, select, MetaData
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import relationship, sessionmaker, joinedload
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -71,16 +71,23 @@ def connect_db():
     return engine, db_session
 
 # Función para cargar productos desde la base de datos
-def load_product_from_db(product_id=None):
+def load_product_from_db(product_id=None, load_tags=False):
     db_session = Session()
     try:
         if product_id:
             # Cargar un producto específico
-            product = db_session.query(Product).filter_by(id=product_id).first()
+            if load_tags:
+                # Usar joinedload para asegurarse de que se carguen los tags asociados
+                product = db_session.query(Product).options(joinedload(Product.tags)).filter_by(id=product_id).first()
+            else:
+                product = db_session.query(Product).filter_by(id=product_id).first()
             return product
         else:
             # Cargar todos los productos
-            products = db_session.query(Product).all()
+            if load_tags:
+                products = db_session.query(Product).options(joinedload(Product.tags)).all()
+            else:
+                products = db_session.query(Product).all()
             return products
     except Exception as e:
         print(f"Error al cargar productos de la base de datos: {e}")

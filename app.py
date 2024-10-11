@@ -57,7 +57,7 @@ def edit_product(product_id):
     tags = load_tags()  # Cargar todos los tags
 
     # Obtener el producto a editar
-    product = load_product_from_db(product_id)
+    product = load_product_from_db(product_id, load_tags=True)
 
     if request.method == 'POST':
         nombre = request.form['nombre']
