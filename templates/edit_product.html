@@ -33,7 +33,8 @@
                 <div class="tags-filter">
                     {% for tag in tags %}
                     <label class="filter-tag {% if product and tag in product.tags %}active{% endif %}">
-                        <input type="checkbox" name="tags" value="{{ tag }}" {% if product and tag in product.tags %}checked{% endif %}> {{ tag }}
+                        <input type="checkbox" name="tags" value="{{ tag }}" 
+                        {% if product and tag in product.tags %}checked{% endif %}> {{ tag }}
                     </label>
                     {% endfor %}
                 </div>
