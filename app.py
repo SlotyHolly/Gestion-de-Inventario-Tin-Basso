@@ -8,7 +8,7 @@ import boto3
 from functions import (
     delete_image_from_s3, allowed_file, load_inventory, save_product, load_tags, 
     delete_product_from_db, delete_tag, load_product_from_db, save_tags, save_image_to_s3,
-    update_product_tags
+    update_product_tags, check_file_in_s3
 )
 
 # Cargar las variables de entorno necesarias
@@ -76,8 +76,8 @@ def edit_product(product_id):
         file = request.files['foto'] if 'foto' in request.files else None
         if file and allowed_file(file.filename):
             # Eliminar la imagen anterior de S3 si existe
-            if 'imagen' in product and product['imagen']:
-                delete_image_from_s3(product['imagen'])
+            if check_file_in_s3(file.filename):
+                delete_image_from_s3(file.filename)
 
             # Subir la nueva imagen a S3
             save_image_to_s3(file, product_id)

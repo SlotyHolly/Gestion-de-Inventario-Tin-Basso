@@ -18,8 +18,6 @@ engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
-BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
-
 '''
 Definir las tablas usando SQLAlchemy
 '''
@@ -281,8 +279,6 @@ def save_product(product_data):
     finally:
         db_session.close()
 
-
-
 '''
 Manejo de tags
 '''
@@ -437,6 +433,8 @@ s3_client = boto3.client(
     region_name=os.getenv('AWS_REGION')
 )
 
+BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
+
 # Función para eliminar la imagen de S3
 def delete_image_from_s3(image_url):
     """Elimina la imagen del bucket de S3 usando la URL proporcionada."""
@@ -491,3 +489,20 @@ def save_image_to_s3(image_file, product_id, extension="jpg", quality=50):
     except Exception as e:
         print(f"Error al guardar la imagen en S3: {e}")
         return None
+    
+# Funcion para verificar si existe un archivo en S3
+def check_file_in_s3(file_name):
+    """
+    Verifica si un archivo existe en el bucket de S3.
+    
+    Parámetros:
+        - file_name: El nombre del archivo a verificar.
+    
+    Retorna:
+        - True si el archivo existe, False en caso contrario.
+    """
+    try:
+        response = s3_client.head_object(Bucket=BUCKET_NAME, Key=file_name)
+        return True
+    except Exception as e:
+        return False
