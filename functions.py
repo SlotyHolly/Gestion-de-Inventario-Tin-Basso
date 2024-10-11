@@ -1,14 +1,24 @@
+# functions.py
+
 import io
-import requests
 from PIL import Image
 from werkzeug.utils import secure_filename
 import boto3
 import os
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Table
+from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 
-# Cargar las variables de entorno
-KV_REST_API_URL = os.getenv('KV_REST_API_URL')
-KV_REST_API_TOKEN = os.getenv('KV_REST_API_TOKEN')
-BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
+# Configurar la conexión con PostgreSQL
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+DB_HOST = os.getenv('DB_HOST')
+DB_PORT = os.getenv('DB_PORT')
+DB_NAME = os.getenv('DB_NAME')
+
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+engine = create_engine(DATABASE_URL)
+Base = declarative_base()
 
 # Configurar el cliente S3
 s3_client = boto3.client(
@@ -18,8 +28,36 @@ s3_client = boto3.client(
     region_name=os.getenv('AWS_REGION')
 )
 
-# Headers para autenticar con la API REST
-headers = {"Authorization": f"Bearer {KV_REST_API_TOKEN}"}
+BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
+
+# Crear la sesión de SQLAlchemy
+Session = sessionmaker(bind=engine)
+session = Session()
+
+# Definir las tablas usando SQLAlchemy
+# Tabla de asociación para productos y tags (muchos a muchos)
+product_tags = Table(
+    'product_tags', Base.metadata,
+    Column('product_id', Integer, ForeignKey('products.id'), primary_key=True),
+    Column('tag_id', Integer, ForeignKey('tags.id'), primary_key=True)
+)
+
+class Product(Base):
+    __tablename__ = 'products'
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String, nullable=False)
+    cantidad = Column(Integer, nullable=False)
+    precio = Column(Float, nullable=False)
+    tags = relationship('Tag', secondary=product_tags, back_populates='products')
+
+class Tag(Base):
+    __tablename__ = 'tags'
+    id = Column(Integer, primary_key=True)
+    nombre = Column(String, unique=True, nullable=False)
+    products = relationship('Product', secondary=product_tags, back_populates='tags')
+
+# Crear las tablas si no existen
+Base.metadata.create_all(engine)
 
 # Función para comprimir y guardar la imagen
 def compress_image(image, quality=30):
@@ -61,120 +99,66 @@ def generate_filename(nombre_producto, extension):
     nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
     return f"{nombre_seguro}.{extension}"
 
-# Función para cargar el inventario desde la base de datos KV
+# Función para cargar el inventario desde la base de datos
 def load_inventory():
+    """Cargar todos los productos desde la base de datos."""
+    products = session.query(Product).all()
     inventario = []
-    try:
-        url = f"{KV_REST_API_URL}/lrange/products/0/-1"
-        response = requests.get(url, headers=headers)
-
-        if response.status_code == 200:
-            # Obtener todas las claves de los productos
-            keys = response.json().get('result', [])
-            
-            for key in keys:
-                key = key.strip()  # Limpiar espacios adicionales
-                # Obtener los datos del producto
-                product_data = rest_get(key)
-                if product_data:
-                    # Convertir la cadena de datos en un diccionario
-                    product = eval(product_data)
-                    product['cantidad'] = int(product['cantidad'])
-                    product['precio'] = float(product['precio'])
-                    product['tags'] = product['tags'].split(',') if product['tags'] else []
-
-                    # Convertir la ruta de la imagen a la URL de S3
-                    if 'imagen' in product and product['imagen']:
-                        product['imagen'] = f'https://{BUCKET_NAME}.s3.amazonaws.com/{product["imagen"]}'
-                    
-                    inventario.append(product)
-        else:
-            print(f"Error al obtener inventario con LRANGE: {response.status_code}, {response.text}")
-
-    except Exception as e:
-        print(f"Error de conexión o problema al cargar el inventario: {e}")
-
+    for product in products:
+        inventario.append({
+            'id': product.id,
+            'nombre': product.nombre,
+            'cantidad': product.cantidad,
+            'precio': product.precio,
+            'tags': [tag.nombre for tag in product.tags]
+        })
     return inventario
 
-# Función para obtener datos usando la clave
-def rest_get(key):
-    key = key.strip()
-    url = f"{KV_REST_API_URL}/get/{key}"
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            return response.json()["result"]
-        else:
-            print(f"Error al obtener {key}: {response.status_code}, {response.text}")
-            return None
-    except Exception as e:
-        print(f"Error de conexión a la API REST al obtener {key}: {e}")
-        return None
+# Función para guardar un producto en la base de datos
+def save_product(product_data):
+    """Guardar un nuevo producto en la base de datos."""
+    new_product = Product(
+        id=product_data['id'],
+        nombre=product_data['nombre'],
+        cantidad=product_data['cantidad'],
+        precio=product_data['precio']
+    )
+    
+    # Asignar tags al producto
+    for tag_name in product_data.get('tags', []):
+        tag = session.query(Tag).filter_by(nombre=tag_name).first()
+        if not tag:
+            tag = Tag(nombre=tag_name)
+        new_product.tags.append(tag)
+    
+    session.add(new_product)
+    session.commit()
+    print(f"Producto '{new_product.nombre}' guardado exitosamente.")
 
-# Función para guardar un producto en la base de datos KV y la lista de productos
-def save_product(product):
-    key = f"product:{product['id']}"
-    product['tags'] = ','.join(product['tags'])
-    url = f"{KV_REST_API_URL}/set/{key}"
-    try:
-        response = requests.post(url, json={"value": str(product)}, headers=headers)
-        if response.status_code == 200:
-            # Después de guardar el producto, agregarlo a la lista de productos
-            url_push = f"{KV_REST_API_URL}/rpush/products"
-            response_push = requests.post(url_push, json={"value": key}, headers=headers)
-            if response_push.status_code == 200:
-                print(f"Producto {key} guardado y agregado a la lista 'products'.")
-            else:
-                print(f"Error al agregar el producto a la lista 'products': {response_push.status_code}, {response_push.text}")
-        else:
-            print(f"Error al guardar {key}: {response.status_code}, {response.text}")
-    except Exception as e:
-        print(f"Error de conexión a la API REST al guardar {key}: {e}")
-
-# Función para cargar los tags y asegurarse de que se muestren correctamente
+# Función para cargar los tags
 def load_tags():
-    """Cargar tags de la base de datos y retornar solo el valor limpio."""
-    url = f"{KV_REST_API_URL}/lrange/tags/0/-1"
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            # Retornar los valores como una lista de cadenas simples
-            tags = response.json()["result"]
-            return [tag if isinstance(tag, str) else tag.get('value', '') for tag in tags]
-        else:
-            print(f"Error al obtener tags: {response.status_code}, {response.text}")
-            return []
-    except Exception as e:
-        print(f"Error de conexión a la API REST: {e}")
-        return []
+    """Cargar todos los tags desde la base de datos."""
+    tags = session.query(Tag).all()
+    return [tag.nombre for tag in tags]
 
-# Función para guardar los tags en la base de datos KV de forma correcta
+# Función para guardar tags en la base de datos
 def save_tags(tags):
-    """Guardar tags como valores simples en la base de datos."""
-    # Eliminar todos los tags actuales
-    url_delete = f"{KV_REST_API_URL}/del/tags"
-    requests.post(url_delete, headers=headers)
+    """Guardar una lista de tags en la base de datos."""
+    for tag_name in tags:
+        existing_tag = session.query(Tag).filter_by(nombre=tag_name).first()
+        if not existing_tag:
+            new_tag = Tag(nombre=tag_name)
+            session.add(new_tag)
+            print(f"Tag '{tag_name}' agregado a la base de datos.")
+    session.commit()
 
-    # Agregar cada tag como un valor simple
-    for tag in tags:
-        url_push = f"{KV_REST_API_URL}/rpush/tags"
-        response = requests.post(url_push, json={"value": tag}, headers=headers)
-        if response.status_code == 200:
-            print(f"Tag '{tag}' agregado correctamente.")
-        else:
-            print(f"Error al agregar el tag '{tag}': {response.status_code}, {response.text}")
-
-# Función para eliminar claves incorrectas en la lista de productos
-def delete_incorrect_keys():
-    """Eliminar cualquier clave con el formato incorrecto en la lista de productos."""
-    url_lrange = f"{KV_REST_API_URL}/lrange/products/0/-1"
-    response = requests.get(url_lrange, headers=headers)
-    if response.status_code == 200:
-        keys = response.json().get('result', [])
-        for key in keys:
-            if isinstance(key, str) and key.startswith('{"value":'):
-                url_lrem = f"{KV_REST_API_URL}/lrem/products/1/{key}"
-                requests.post(url_lrem, headers=headers)
-                print(f"Clave incorrecta eliminada: {key}")
+# Función para eliminar tags en la base de datos
+def delete_tag(tag_name):
+    """Eliminar un tag de la base de datos."""
+    tag_to_delete = session.query(Tag).filter_by(nombre=tag_name).first()
+    if tag_to_delete:
+        session.delete(tag_to_delete)
+        session.commit()
+        print(f"Tag '{tag_name}' eliminado de la base de datos.")
     else:
-        print(f"Error al obtener claves con LRANGE: {response.status_code}, {response.text}")
+        print(f"Tag '{tag_name}' no encontrado en la base de datos.")

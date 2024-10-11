@@ -1,22 +1,16 @@
-from wsgiref import headers
+# app.py
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 import os
+import sys
 import io
-from PIL import Image  # Importar PIL para la manipulación de imágenes
+from PIL import Image
 import boto3
-import requests
-
-# Importar funciones desde el archivo 'functions.py'
 from functions import (
     compress_image, crop_image_to_square, delete_image_from_s3, 
     allowed_file, generate_filename, load_inventory, 
-    rest_get, save_product, load_tags, save_tags, delete_incorrect_keys
+    save_product, load_tags, save_tags, delete_incorrect_keys, 
+    connect_db, delete_product_from_db, load_product_from_db
 )
-
-# Cargar las variables de entorno necesarias
-KV_REST_API_URL = os.getenv('KV_REST_API_URL')
-KV_REST_API_TOKEN = os.getenv('KV_REST_API_TOKEN')
-BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 
 # Configurar el cliente S3
 s3_client = boto3.client(
@@ -25,6 +19,9 @@ s3_client = boto3.client(
     aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
     region_name=os.getenv('AWS_REGION')
 )
+
+# Cargar variables de entorno para PostgreSQL
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Definir la ruta base del directorio
 base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -40,8 +37,9 @@ app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
 
 @app.route('/')
 def index():
-    inventario = load_inventory()
-    tags = load_tags()
+    conn, cursor = connect_db()
+    inventario = load_inventory(cursor)
+    tags = load_tags(cursor)
     filtro_tags = request.args.getlist('tag')
     search_query = request.args.get('search', '').lower()
 
@@ -53,59 +51,73 @@ def index():
     if search_query:
         inventario = [p for p in inventario if search_query in p['nombre'].lower()]
     
+    cursor.close()
+    conn.close()
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
 
 
 @app.route('/add_tag', methods=['POST'])
 def add_tag():
-    tags = load_tags()
+    conn, cursor = connect_db()
+    tags = load_tags(cursor)
     new_tag = request.form.get('tag')
     if new_tag and new_tag not in tags:
         tags.append(new_tag)
-        save_tags(tags)
+        save_tags(cursor, conn, tags)
         flash('Tag agregado exitosamente.', 'success')
     else:
         flash('El tag ya existe o está vacío.', 'danger')
+    cursor.close()
+    conn.close()
     return redirect(url_for('manage_tags'))
 
 
 @app.route('/manage_tags', methods=['GET', 'POST'])
 def manage_tags():
-    tags = load_tags()
+    conn, cursor = connect_db()
+    tags = load_tags(cursor)
     if request.method == 'POST':
         new_tag = request.form['tag']
         if new_tag and new_tag not in tags:
             tags.append(new_tag)
-            save_tags(tags)
+            save_tags(cursor, conn, tags)
             flash('Tag agregado exitosamente.', 'success')
         else:
             flash('El tag ya existe o está vacío.', 'danger')
+        cursor.close()
+        conn.close()
         return redirect(url_for('manage_tags'))
 
+    cursor.close()
+    conn.close()
     return render_template('manage_tags.html', tags=tags)
 
 
 @app.route('/delete_tag/<tag>', methods=['POST'])
 def delete_tag(tag):
-    tags = load_tags()
+    conn, cursor = connect_db()
+    tags = load_tags(cursor)
     tags = [t for t in tags if t != tag]  # Filtrar el tag
-    save_tags(tags)  # Guardar tags actualizados
+    save_tags(cursor, conn, tags)  # Guardar tags actualizados
 
-    inventario = load_inventory()
+    inventario = load_inventory(cursor)
     for producto in inventario:
         if tag in producto.get('tags', []):
             producto['tags'].remove(tag)
     for product in inventario:
-        save_product(product)  # Guardar productos actualizados en la base de datos
+        save_product(cursor, conn, product)  # Guardar productos actualizados en la base de datos
 
+    cursor.close()
+    conn.close()
     return redirect(url_for('manage_tags'))
 
 
 @app.route('/add', methods=['GET', 'POST'])
 def add_product():
-    tags = load_tags()
+    conn, cursor = connect_db()
+    tags = load_tags(cursor)
     if request.method == 'POST':
-        inventario = load_inventory()
+        inventario = load_inventory(cursor)
         new_id = max([int(p['id']) for p in inventario], default=0) + 1
         nombre = request.form['nombre']
         cantidad = int(request.form['cantidad'])
@@ -134,33 +146,39 @@ def add_product():
                 s3_client.upload_fileobj(
                     compressed_image,
                     BUCKET_NAME,
-                    f'static/uploads/{filename}',
+                    filename,
                     ExtraArgs={'ContentType': 'image/jpeg'}
                 )
 
                 # Construir la URL de la imagen subida
-                imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/static/uploads/{filename}'
+                imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/{filename}'
 
                 print(f"Imagen subida exitosamente a S3: {imagen}")
 
             except Exception as e:
                 print(f"Error al subir la imagen a S3: {e}")
                 flash('Hubo un error al subir la imagen a S3. Por favor, intenta de nuevo.', 'danger')
+                cursor.close()
+                conn.close()
                 return redirect(url_for('add_product'))
 
-        # Crear el nuevo producto con la URL de la imagen
-        new_product = {'id': str(new_id), 'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags, 'imagen': imagen}
-        save_product(new_product)
-        
-        flash('Producto agregado con éxito y guardado en la base de datos KV.', 'success')
+        # Crear el nuevo producto
+        new_product = {'id': str(new_id), 'nombre': nombre, 'cantidad': cantidad, 'precio': precio, 'tags': producto_tags}
+        save_product(cursor, conn, new_product)
+
+        flash('Producto agregado con éxito y guardado en la base de datos.', 'success')
+        cursor.close()
+        conn.close()
         return redirect(url_for('index'))
+    cursor.close()
+    conn.close()
     return render_template('add_product.html', tags=tags)
 
 
 @app.route('/delete/<int:product_id>', methods=['POST'])
 def delete_product(product_id):
-    inventario = load_inventory()
-    producto_a_eliminar = next((p for p in inventario if p['id'] == product_id), None)
+    conn, cursor = connect_db()
+    producto_a_eliminar = load_product_from_db(cursor, product_id)
 
     if producto_a_eliminar:
         # Eliminar la imagen de S3 si existe
@@ -168,16 +186,13 @@ def delete_product(product_id):
             delete_image_from_s3(producto_a_eliminar['imagen'])
 
         # Eliminar el producto de la base de datos
-        key = f"product:{product_id}"
-        url = f"{KV_REST_API_URL}/del/{key}"
-        response = requests.post(url, headers=headers)
-        if response.status_code == 200:
-            flash('Producto eliminado exitosamente.', 'success')
-        else:
-            flash(f'Error al eliminar el producto: {response.status_code}, {response.text}', 'danger')
+        delete_product_from_db(cursor, conn, product_id)
+        flash('Producto eliminado exitosamente.', 'success')
     else:
         flash('Producto no encontrado.', 'danger')
 
+    cursor.close()
+    conn.close()
     return redirect(url_for('index'))
 
 
