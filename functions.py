@@ -125,34 +125,37 @@ def update_product_tags(product_id, selected_tags):
         product = db_session.query(Product).filter_by(id=product_id).first()
 
         if not product:
-            # Crear un producto si no existe
-            product = Product(id=product_id)
-            db_session.add(product)
-            db_session.commit()
-            print(f"Producto con ID {product_id} creado exitosamente.")
+            print(f"Producto con ID {product_id} no encontrado.")
             return
 
-        # Limpiar los tags actuales del producto
+        # Limpiar los tags actuales del producto en la tabla intermedia
         product.tags.clear()
 
         # Asignar los nuevos tags
         for tag_name in selected_tags:
+            # Buscar el tag por nombre
             tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
+
+            # Si el tag no existe, crear uno nuevo
             if not tag:
-                # Crear el tag si no existe
                 tag = Tag(nombre=tag_name)
                 db_session.add(tag)
+                db_session.commit()  # Guardar el nuevo tag para poder relacionarlo
 
-            # Agregar el tag al producto
+            # Asociar el tag al producto
             product.tags.append(tag)
 
+        # Confirmar los cambios en la base de datos
         db_session.commit()
         print(f"Tags del producto {product_id} actualizados correctamente.")
+        
     except Exception as e:
         db_session.rollback()
         print(f"Error al actualizar los tags del producto {product_id}: {e}")
+        
     finally:
         db_session.close()
+
 
 # Función para cargar los tags asociados a un producto específico
 def load_tags_for_product(product_id):
