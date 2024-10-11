@@ -181,7 +181,8 @@ def load_inventory():
                 'id': row.id,
                 'nombre': row.nombre,
                 'cantidad': row.cantidad,
-                'precio': row.precio
+                'precio': row.precio,
+                'tags': [tag.nombre for tag in product.tags]  # Aquí cargamos los tags como una lista de nombres de tags
             }
             inventario.append(product)
         return inventario
