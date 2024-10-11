@@ -439,14 +439,13 @@ s3_client = boto3.client(
 BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 
 # Función para eliminar la imagen de S3
-def delete_image_from_s3(image_url):
+def delete_image_from_s3(product_id):
     """Elimina la imagen del bucket de S3 usando la URL proporcionada."""
-    if image_url:
+    if product_id:
         # Obtener el nombre del archivo de la URL
-        image_key = image_url.split(f"https://{BUCKET_NAME}.s3.amazonaws.com/")[-1]
         try:
-            s3_client.delete_object(Bucket=BUCKET_NAME, Key=image_key)
-            print(f"Imagen eliminada exitosamente de S3: {image_key}")
+            s3_client.delete_object(Bucket=BUCKET_NAME, Key=f"{product_id}.jpg")
+            print(f"Imagen eliminada exitosamente de S3: {product_id}")
         except Exception as e:
             print(f"Error al eliminar la imagen de S3: {e}")
 
@@ -495,7 +494,7 @@ def save_image_to_s3(image_file, product_id, extension="jpg", quality=25):
         return None
     
 # Funcion para verificar si existe un archivo en S3
-def check_file_in_s3(file_name):
+def check_file_in_s3(product_id):
     """
     Verifica si un archivo existe en el bucket de S3.
     
@@ -505,8 +504,9 @@ def check_file_in_s3(file_name):
     Retorna:
         - True si el archivo existe, False en caso contrario.
     """
+    file_name = f"{product_id}.jpg"
     try:
-        response = s3_client.head_object(Bucket=BUCKET_NAME, Key=file_name)
+        s3_client.head_object(Bucket=BUCKET_NAME, Key=file_name)
         return True
     except Exception as e:
         return False
