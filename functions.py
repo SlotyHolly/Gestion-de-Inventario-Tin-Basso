@@ -10,6 +10,10 @@ from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
 DATABASE_URL = os.getenv('POSTGRES_URL')
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
+    
 engine = create_engine(DATABASE_URL)
 Base = declarative_base()
 
