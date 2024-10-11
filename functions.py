@@ -206,7 +206,7 @@ def load_inventory():
             product_tags = load_tags_for_product(row.id)  # Asegúrate de que esta función esté funcionando bien
 
             # Obtener URL de la imagen en S3
-            image_url = get_image_url(f"uploads/{row.id}.jpg")
+            image_url = get_image_url(f"{row.id}.jpg")
             product = {
                 'id': row.id,
                 'nombre': row.nombre,

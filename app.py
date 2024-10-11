@@ -68,7 +68,7 @@ def edit_product(product_id):
 
     if product:
         # Generar la URL firmada para la imagen
-        image_url = get_image_url(f"uploads/{product_id}.jpg")
+        image_url = get_image_url(f"{product_id}.jpg")
         product.image_url = image_url  # Añadir la URL al producto
 
     if request.method == 'POST':
