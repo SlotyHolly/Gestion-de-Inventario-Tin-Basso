@@ -170,7 +170,7 @@ def load_inventory(session):
     """
     # Asumir que tienes una tabla de productos definida en la base de datos
     metadata = MetaData()
-    products = Table('products', metadata, autoload_with=session.bind)
+    products = Table('products', metadata, autoload_with=session.get_bind())
     
     # Ejecutar una consulta para obtener todos los productos
     query = select(products)
@@ -209,10 +209,10 @@ def load_tags(session):
     try:
         # Crear un objeto MetaData y reflejar la tabla 'tags'
         metadata = MetaData()
-        tags_table = Table('tags', metadata, autoload_with=session.bind)  # session.bind obtiene la conexión
+        tags_table = Table('tags', metadata, autoload_with=session.get_bind())  # session.bind obtiene la conexión
 
         # Realizar la consulta usando SQLAlchemy
-        stmt = select(tags_table.c.name)  # Asumiendo que la columna se llama 'name'
+        stmt = select(tags_table.c.nombre)  # Asumiendo que la columna se llama 'name'
         result = session.execute(stmt)
 
         # Convertir el resultado en una lista de tags
