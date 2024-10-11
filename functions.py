@@ -204,18 +204,25 @@ def save_product(product_data):
 # Función para cargar los tags
 def load_tags(session):
     """
-    Cargar los tags desde la base de datos usando la sesión SQLAlchemy.
+    Carga los tags desde la base de datos utilizando una sesión de SQLAlchemy.
     """
-    metadata = MetaData()
-    tags_table = Table('tags', metadata, autoload_with=session.bind)
-    
-    # Ejecutar una consulta para obtener todos los tags
-    query = select(tags_table.c.nombre)  # Asumiendo que 'name' es la columna de tags
-    result = session.execute(query)
-    
-    # Retornar los tags como una lista de cadenas
-    tags = [row[0] for row in result]
-    return tags
+    try:
+        # Crear un MetaData vinculado a la conexión actual del motor
+        metadata = MetaData(bind=session.get_bind())
+        
+        # Reflejar la tabla de 'tags' desde la base de datos
+        tags_table = Table('tags', metadata, autoload_with=session.get_bind())
+
+        # Realizar la consulta para obtener todos los tags
+        query = session.query(tags_table.c.name).all()  # Asumiendo que la columna se llama 'name'
+        
+        # Extraer los nombres de los tags en una lista
+        tags = [row[0] for row in query]
+        return tags
+
+    except Exception as e:
+        print(f"Error al cargar los tags: {e}")
+        return []
 
 # Función para guardar tags en la base de datos
 def save_tags(tags):
