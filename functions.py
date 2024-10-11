@@ -67,12 +67,10 @@ def connect_db():
     # Crear el motor de la base de datos
     engine = create_engine(DATABASE_URL)
     
-    # Crear una sesión local utilizando el motor creado
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    # Crear una fábrica de sesiones para gestionar la conexión a la base de datos
+    Session = sessionmaker(bind=engine)
     
-    # Crear una sesión de SQLAlchemy y devolverla
-    session = SessionLocal()
-    return session, engine
+    return Session, engine
 
 # Función para cargar productos desde la base de datos
 def load_product_from_db(product_id=None):
@@ -166,19 +164,32 @@ def generate_filename(nombre_producto, extension):
 # Función para cargar el inventario desde la base de datos
 def load_inventory(session):
     """
-    Cargar el inventario desde la base de datos usando la sesión SQLAlchemy.
+    Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
     """
-    # Asumir que tienes una tabla de productos definida en la base de datos
-    metadata = MetaData()
-    products = Table('products', metadata, autoload_with=session.get_bind())
-    
-    # Ejecutar una consulta para obtener todos los productos
-    query = select(products)
-    result = session.execute(query)
-    
-    # Convertir el resultado en una lista de diccionarios
-    inventario = [dict(row) for row in result]
-    return inventario
+    try:
+        # Crear el objeto MetaData y reflejar la tabla 'products' utilizando session.bind
+        metadata = MetaData()
+        products = Table('products', metadata, autoload_with=session.bind)  # Utilizar session.bind para reflejar las tablas
+
+        # Realizar la consulta para obtener todos los productos
+        stmt = select(products)
+        result = session.execute(stmt)
+
+        # Convertir el resultado en una lista de diccionarios
+        inventario = []
+        for row in result:
+            product = {
+                'id': row.id,
+                'nombre': row.nombre,
+                'cantidad': row.cantidad,
+                'precio': row.precio
+            }
+            inventario.append(product)
+        return inventario
+
+    except Exception as e:
+        print(f"Error al cargar el inventario: {e}")
+        return []
 
 # Función para guardar un producto en la base de datos
 def save_product(product_data):
@@ -209,16 +220,19 @@ def load_tags(session):
     try:
         # Crear un objeto MetaData y reflejar la tabla 'tags'
         metadata = MetaData()
-        tags_table = Table('tags', metadata, autoload_with=session.get_bind())  # session.bind obtiene la conexión
+        tags_table = Table('tags', metadata, autoload_with=session.bind)  # Utilizar session.bind
 
         # Realizar la consulta usando SQLAlchemy
-        stmt = select(tags_table.c.nombre)  # Asumiendo que la columna se llama 'name'
+        stmt = select(tags_table.c.nombre)  # Asumiendo que 'tag_name' es la columna de tags
         result = session.execute(stmt)
 
         # Convertir el resultado en una lista de tags
         tags = [row[0] for row in result]
         return tags
 
+    except Exception as e:
+        print(f"Error al cargar los tags: {e}")
+        return []
     except Exception as e:
         print(f"Error al cargar los tags: {e}")
         return []
