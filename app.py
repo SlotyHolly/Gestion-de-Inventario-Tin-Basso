@@ -20,7 +20,7 @@ s3_client = boto3.client(
     region_name=os.getenv('AWS_REGION')
 )
 
-# Cargar variables de entorno para PostgreSQL
+BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Definir la ruta base del directorio
