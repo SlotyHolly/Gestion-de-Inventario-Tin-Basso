@@ -87,6 +87,7 @@ def edit_product(product_id):
         product.cantidad = cantidad
         product.precio = precio
         print(f"Tags seleccionados: {selected_tags}")
+        print(f"El id del producto es: {product_id}")
         # Actualizar los tags utilizando la nueva función
         update_product_tags(product_id, selected_tags)
 
