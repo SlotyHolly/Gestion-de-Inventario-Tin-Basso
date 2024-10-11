@@ -210,7 +210,7 @@ def load_inventory():
     Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
     """
     # Crear una instancia de la sesión
-    db_session = session()
+    db_session = Session()
     try:
         # Crear el objeto MetaData y reflejar la tabla 'products'
         metadata = MetaData()
@@ -277,7 +277,7 @@ def load_tags():
     Carga los tags desde la base de datos utilizando una sesión de SQLAlchemy.
     """
     # Crear una instancia de la sesión
-    db_session = session()
+    db_session = Session()
     try:
         # Crear un objeto MetaData y reflejar la tabla 'tags'
         metadata = MetaData()
