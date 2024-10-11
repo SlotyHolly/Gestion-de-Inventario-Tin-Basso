@@ -8,7 +8,7 @@ import boto3
 from functions import (
     delete_image_from_s3, allowed_file, load_inventory, save_product, load_tags, 
     delete_product_from_db, delete_tag, load_product_from_db, save_tags, save_image_to_s3,
-    connect_db
+    update_product_tags
 )
 
 # Cargar las variables de entorno necesarias
@@ -57,13 +57,13 @@ def edit_product(product_id):
     tags = load_tags()  # Cargar todos los tags
 
     # Obtener el producto a editar
-    product = load_product_from_db(product_id, load_tags=True)
+    product = load_product_from_db(product_id)
 
     if request.method == 'POST':
         nombre = request.form['nombre']
         cantidad = int(request.form['cantidad'])
         precio = float(request.form['precio'])
-        selected_tags = request.form.getlist('tags')
+        selected_tags = request.form.getlist('tags')  # Lista de nombres de tags seleccionados
 
         # Manejo de imagen
         file = request.files['foto'] if 'foto' in request.files else None
@@ -79,7 +79,9 @@ def edit_product(product_id):
         product.nombre = nombre
         product.cantidad = cantidad
         product.precio = precio
-        product.tags = selected_tags
+
+        # Actualizar los tags utilizando la nueva función
+        update_product_tags(product_id, selected_tags)
 
         # Guardar los cambios en la base de datos
         save_product(product)

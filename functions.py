@@ -116,6 +116,51 @@ def delete_product_from_db(product_id):
     finally:
         db_session.close()
 
+# Función para actualizar los tags de un producto
+def update_product_tags(product_id, selected_tags):
+    """
+    Actualiza los tags de un producto en la tabla product_tags.
+    
+    Parámetros:
+    - product_id: ID del producto.
+    - selected_tags: Lista de nombres de los tags seleccionados.
+    """
+
+    db_session = Session()
+    try:
+        # Obtener el producto a editar
+        product = db_session.query(Product).filter_by(id=product_id).first()
+
+        if not product:
+            # Crear un producto si no existe
+            product = Product(id=product_id)
+            db_session.add(product)
+            db_session.commit()
+            print(f"Producto con ID {product_id} creado exitosamente.")
+            return
+
+        # Limpiar los tags actuales del producto
+        product.tags.clear()
+
+        # Asignar los nuevos tags
+        for tag_name in selected_tags:
+            tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
+            if not tag:
+                # Crear el tag si no existe
+                tag = Tag(nombre=tag_name)
+                db_session.add(tag)
+
+            # Agregar el tag al producto
+            product.tags.append(tag)
+
+        db_session.commit()
+        print(f"Tags del producto {product_id} actualizados correctamente.")
+    except Exception as e:
+        db_session.rollback()
+        print(f"Error al actualizar los tags del producto {product_id}: {e}")
+    finally:
+        db_session.close()
+
 '''
 Manejo de productos
 '''
