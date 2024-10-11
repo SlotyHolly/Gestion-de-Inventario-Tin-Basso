@@ -91,10 +91,6 @@ def edit_product(product_id):
         # Manejo de imagen
         file = request.files['foto'] if 'foto' in request.files else None
         if file and allowed_file(file.filename):
-            # Eliminar la imagen anterior de S3 si existe
-
-            #if check_file_in_s3(product_id):
-            #    delete_image_from_s3(product_id)
 
             # Subir la nueva imagen a S3
             save_image_to_s3(file, product_id)
@@ -200,19 +196,19 @@ def add_product():
     
     return render_template('add_product.html', tags=tags)
 
-
 @app.route('/delete/<int:product_id>', methods=['POST'])
 def delete_product(product_id):
-    # Eliminar el producto de la base de datos y la imagen asociada de S3
-    producto_a_eliminar = load_product_from_db(product_id)
+    inventario = load_inventory()
+    producto_a_eliminar = next((p for p in inventario if p['id'] == product_id), None)
 
     if producto_a_eliminar:
         # Eliminar la imagen de S3 si existe
-        if 'imagen' in producto_a_eliminar and producto_a_eliminar['imagen']:
-            delete_image_from_s3(producto_a_eliminar['imagen'])
+        if hasattr(producto_a_eliminar, 'imagen') and producto_a_eliminar.imagen:
+            delete_image_from_s3(product_id)
 
         # Eliminar el producto de la base de datos
-        delete_product_from_db(product_id)
+        delete_product_from_db(product_id)  # Asegúrate de tener esta función bien implementada
+
         flash('Producto eliminado exitosamente.', 'success')
     else:
         flash('Producto no encontrado.', 'danger')
