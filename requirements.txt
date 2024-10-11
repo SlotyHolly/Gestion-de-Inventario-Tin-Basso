@@ -1,7 +1,7 @@
-Flask==3.0.3
-werkzeug==3.0.4
-gunicorn==20.1.0
-Pillow==10.4.0
-requests==2.32.2
-sqlalchemy==2.0.35
-psycopg2-binary==2.9.9
+Flask
+werkzeug
+gunicorn
+Pillow
+requests
+sqlalchemy
+psycopg2-binary

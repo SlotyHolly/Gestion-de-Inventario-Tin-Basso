@@ -3,7 +3,7 @@ from PIL import Image
 from werkzeug.utils import secure_filename
 import boto3
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Table, sessionmaker, delete, select, MetaData
+from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Table, delete, select, MetaData
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.exc import SQLAlchemyError
