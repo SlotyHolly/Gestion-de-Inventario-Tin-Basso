@@ -193,16 +193,17 @@ def load_tags_for_product(product_id):
 Manejo de productos
 '''
 
-# Función para cargar el inventario de la base de datos junto con los tags asociados
+# Función para cargar el inventario de la base de datos
 def load_inventory():
     """
-    Carga el inventario de la base de datos junto con los tags asociados a cada producto.
+    Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
     """
-    db_session = Session()  # Crear una nueva sesión para interactuar con la base de datos
+    # Crear una instancia de la sesión
+    db_session = Session()
     try:
-        # Reflejar la tabla 'products'
+        # Crear el objeto MetaData y reflejar la tabla 'products'
         metadata = MetaData()
-        products = Table('products', metadata, autoload_with=db_session.bind)
+        products = Table('products', metadata, autoload_with=db_session.bind)  # Utilizar db_session.bind
 
         # Realizar la consulta para obtener todos los productos
         stmt = select(products)
@@ -211,15 +212,18 @@ def load_inventory():
         # Convertir el resultado en una lista de diccionarios
         inventario = []
         for row in result:
+            # Cargar los tags asociados usando la función load_tags_for_product
+            product_tags = load_tags_for_product(row.id)  # Asegúrate de que esta función esté funcionando bien
+
             product = {
                 'id': row.id,
                 'nombre': row.nombre,
                 'cantidad': row.cantidad,
                 'precio': row.precio,
-                # Llamar a la función para cargar los tags asociados a este producto
-                'tags': load_tags_for_product(row.id)
+                'tags': product_tags  # Usamos los tags obtenidos de load_tags_for_product
             }
             inventario.append(product)
+        
         return inventario
 
     except Exception as e:
@@ -227,9 +231,6 @@ def load_inventory():
         return []
     finally:
         db_session.close()
-
-
-
 
 # Función para guardar o actualizar un producto en la base de datos
 def save_product(product_data):
