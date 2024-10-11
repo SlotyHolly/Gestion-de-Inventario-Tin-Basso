@@ -51,7 +51,7 @@ def index():
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
 
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
-def edit_product_route(product_id):
+def edit_product(product_id):
     """
     Ruta para editar un producto existente.
     """
