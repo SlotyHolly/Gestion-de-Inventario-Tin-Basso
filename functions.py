@@ -76,7 +76,7 @@ def load_product_from_db(product_id=None):
     try:
         if product_id:
             # Cargar un producto específico
-            product = db_session.query(Product).filter(Product.id == product_id).first()
+            product = db_session.query(Product).filter_by(id=product_id).first()
             return product
         else:
             # Cargar todos los productos
