@@ -6,10 +6,8 @@ import boto3
 
 # Importar funciones desde el archivo 'functions.py'
 from functions import (
-    compress_image, crop_image_to_square, delete_image_from_s3, 
-    allowed_file, generate_filename, load_inventory, 
-    save_product, load_tags, delete_product_from_db, delete_tag,
-    load_product_from_db, save_tags, edit_product,save_image_to_s3
+    delete_image_from_s3, allowed_file, load_inventory, save_product, load_tags, 
+    delete_product_from_db, delete_tag, load_product_from_db, save_tags, save_image_to_s3
 )
 
 # Cargar las variables de entorno necesarias

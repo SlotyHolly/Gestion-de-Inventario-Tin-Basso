@@ -113,53 +113,6 @@ def delete_product_from_db(product_id):
 Manejo de productos
 '''
 
-# Funcion para editar un producto en la base de datos
-def edit_product(product_id, product_data):
-    """
-    Edita un producto existente en la base de datos.
-
-    Args:
-        product_id (int): ID del producto a editar.
-        product_data (dict): Diccionario con los nuevos datos del producto, 
-                             que deben incluir 'nombre', 'cantidad', 'precio' y 'tags'.
-
-    Returns:
-        bool: True si la edición fue exitosa, False en caso contrario.
-        str: Mensaje de éxito o de error.
-    """
-    db_session = Session() 
-    try:
-        # Obtener el producto existente
-        product = db_session.query(Product).filter_by(id=product_id).first()
-        if not product:
-            return False, f"Producto con ID {product_id} no encontrado."
-
-        # Actualizar el producto con los nuevos datos
-        product.nombre = product_data['nombre']
-        product.cantidad = product_data['cantidad']
-        product.precio = product_data['precio']
-
-        # Manejar los tags del producto
-        product.tags = []  # Limpiar los tags actuales
-        for tag_name in product_data.get('tags', []):
-            # Buscar si el tag ya existe en la base de datos, de lo contrario, crearlo
-            tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
-            if not tag:
-                tag = Tag(nombre=tag_name)
-                db_session.add(tag)
-            product.tags.append(tag)
-
-        # Confirmar los cambios en la base de datos
-        db_session.commit()
-        return True, f"Producto '{product.nombre}' actualizado con éxito."
-
-    except SQLAlchemyError as e:
-        db_session.rollback()
-        return False, f"Error al actualizar el producto: {e}"
-
-    finally:
-        db_session.close()
-
 # Función para cargar el inventario de la base de datos
 def load_inventory():
     """
