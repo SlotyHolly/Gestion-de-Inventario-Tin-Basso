@@ -69,7 +69,7 @@ def connect_db():
     # Crear una fábrica de sesiones para gestionar la conexión a la base de datos
     session = sessionmaker(bind=engine)
     
-    return session, engine
+    return engine, session
 
 # Función para cargar productos desde la base de datos
 def load_product_from_db(product_id=None):
@@ -79,7 +79,7 @@ def load_product_from_db(product_id=None):
     Si no, retorna todos los productos en la base de datos.
     """
     # Conectar a la base de datos
-    session = connect_db()()
+    engine, session = connect_db()
     try:
         if product_id:
             # Cargar un producto específico
@@ -101,7 +101,7 @@ def delete_product_from_db(product_id):
     Eliminar un producto de la base de datos basado en su ID.
     """
     # Conectar a la base de datos
-    session = connect_db()
+    engine, session = connect_db()
     try:
         # Encontrar el producto a eliminar
         product_to_delete = session.query(Product).filter(Product.id == product_id).first()
