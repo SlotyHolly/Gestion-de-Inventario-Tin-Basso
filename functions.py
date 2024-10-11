@@ -153,17 +153,20 @@ def generate_filename(nombre_producto, extension):
     nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
     return f"{nombre_seguro}.{extension}"
 
-# Función para cargar el inventario desde la base de datos
 def load_inventory():
-    session = Session()
+    """
+    Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
+    """
+    # Crear una instancia de la sesión
+    db_session = session()
     try:
-        # Reflejar la tabla 'products' usando session.bind
+        # Crear el objeto MetaData y reflejar la tabla 'products'
         metadata = MetaData()
-        products = Table('products', metadata, autoload_with=engine)
+        products = Table('products', metadata, autoload_with=db_session.bind)  # Utilizar db_session.bind
 
         # Realizar la consulta para obtener todos los productos
         stmt = select(products)
-        result = session.execute(stmt)
+        result = db_session.execute(stmt)
 
         # Convertir el resultado en una lista de diccionarios
         inventario = []
@@ -181,11 +184,16 @@ def load_inventory():
         print(f"Error al cargar el inventario: {e}")
         return []
     finally:
-        session.close()
+        db_session.close()
 
 # Función para guardar un producto en la base de datos
 def save_product(product_data):
-    session = Session()
+
+    """
+    Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
+    """
+
+    db_session = Session()
     try:
         # Crear un nuevo producto y asignarle las tags
         new_product = Product(
@@ -197,31 +205,34 @@ def save_product(product_data):
         
         # Asignar tags al producto
         for tag_name in product_data.get('tags', []):
-            tag = session.query(Tag).filter_by(nombre=tag_name).first()
+            tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
             if not tag:
                 tag = Tag(nombre=tag_name)
             new_product.tags.append(tag)
         
-        session.add(new_product)
-        session.commit()
+        db_session.add(new_product)
+        db_session.commit()
         print(f"Producto '{new_product.nombre}' guardado exitosamente.")
     except Exception as e:
         print(f"Error al guardar producto en la base de datos: {e}")
-        session.rollback()
+        db_session.rollback()
     finally:
-        session.close()
+        db_session.close()
 
-# Función para cargar los tags
 def load_tags():
-    session = Session()
+    """
+    Carga los tags desde la base de datos utilizando una sesión de SQLAlchemy.
+    """
+    # Crear una instancia de la sesión
+    db_session = session()
     try:
-        # Reflejar la tabla 'tags' usando session.bind
+        # Crear un objeto MetaData y reflejar la tabla 'tags'
         metadata = MetaData()
-        tags_table = Table('tags', metadata, autoload_with=engine)
+        tags_table = Table('tags', metadata, autoload_with=db_session.bind)  # Utilizar db_session.bind
 
-        # Realizar la consulta para obtener todos los tags
-        stmt = select(tags_table.c.nombre)
-        result = session.execute(stmt)
+        # Realizar la consulta usando SQLAlchemy
+        stmt = select(tags_table.c.nombre)  # Asumiendo que 'nombre' es la columna de tags
+        result = db_session.execute(stmt)
 
         # Convertir el resultado en una lista de tags
         tags = [row[0] for row in result]
@@ -231,18 +242,29 @@ def load_tags():
         print(f"Error al cargar los tags: {e}")
         return []
     finally:
-        session.close()
+        db_session.close()
 
 # Función para guardar tags en la base de datos
 def save_tags(tags):
-    """Guardar una lista de tags en la base de datos."""
-    for tag_name in tags:
-        existing_tag = session.query(Tag).filter_by(nombre=tag_name).first()
-        if not existing_tag:
-            new_tag = Tag(nombre=tag_name)
-            session.add(new_tag)
-            print(f"Tag '{tag_name}' agregado a la base de datos.")
-    session.commit()
+    """
+    Guardar una lista de tags en la base de datos.
+    """
+    # Crear una sesión para trabajar con la base de datos
+    db_session = Session()  # Crear una instancia de la sesión
+
+    try:
+        for tag_name in tags:
+            existing_tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
+            if not existing_tag:
+                new_tag = Tag(nombre=tag_name)
+                db_session.add(new_tag)
+                print(f"Tag '{tag_name}' agregado a la base de datos.")
+        db_session.commit()
+    except Exception as e:
+        print(f"Error al guardar los tags en la base de datos: {e}")
+        db_session.rollback()
+    finally:
+        db_session.close()
 
 # Función para eliminar tags en la base de datos
 def delete_tag(tag_name):
