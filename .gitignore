@@ -1,3 +1,5 @@
-#Archivos Json 
+#Archivos de debug
+debug_api_kv.py
+#Archivos de configuración
 inventario.json
 tags.json

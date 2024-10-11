@@ -1,31 +1,18 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 import os
-import redis
-from PIL import Image  # Importar la biblioteca Pillow para manipulación de imágenes
-from werkzeug.utils import secure_filename
-import requests
-import io
-import boto3
+import sys
+# Agregar la carpeta 'static' al path para poder importar 'functions.py'
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'static'))
+
+# Importar funciones desde el archivo 'functions.py' dentro de 'static'
+from functions import (
+    compress_image, crop_image_to_square, delete_image_from_s3, 
+    allowed_file, generate_filename, load_inventory, 
+    rest_get, save_product, load_tags, save_tags, delete_incorrect_keys
+)
 
 # Definir la ruta base del directorio
 base_dir = os.path.abspath(os.path.dirname(__file__))
-
-# Configurar el cliente S3
-s3_client = boto3.client(
-    's3',
-    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-    region_name=os.getenv('AWS_REGION')  # Cambia esto a la región que estés usando
-)
-
-BUCKET_NAME = os.getenv('BUCKET_S3_NAME')  # Cambia esto al nombre de tu bucket de S3
-
-# Cargar las variables de entorno
-KV_REST_API_URL = os.getenv('KV_REST_API_URL')
-KV_REST_API_TOKEN = os.getenv('KV_REST_API_TOKEN')
-
-# Headers para autenticar con la API REST
-headers = {"Authorization": f"Bearer {KV_REST_API_TOKEN}"}
 
 # Crear la aplicación Flask
 app = Flask(__name__,
@@ -34,183 +21,6 @@ app = Flask(__name__,
 app.secret_key = 'supersecretkey'
 app.config['UPLOAD_FOLDER'] = '/'  # Carpeta para guardar las imágenes
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
-# Función para comprimir y guardar la imagen
-def compress_image(image, quality=30):
-    """Comprime la imagen y la guarda en un objeto de BytesIO."""
-    compressed_image = io.BytesIO()
-    image.save(compressed_image, "JPEG", optimize=True, quality=quality)
-    compressed_image.seek(0)  # Regresar al inicio para poder leerlo
-    return compressed_image
-
-# Función para recortar la imagen a una proporción 1:1 (cuadrada)
-def crop_image_to_square(image):
-    """Recorta la imagen a una proporción 1:1 (cuadrada) centrada."""
-    width, height = image.size
-    min_dimension = min(width, height)
-    left = (width - min_dimension) / 2
-    top = (height - min_dimension) / 2
-    right = (width + min_dimension) / 2
-    bottom = (height + min_dimension) / 2
-    return image.crop((left, top, right, bottom))
-
-# Asegurarse de que la carpeta de subida exista
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
-
-# Función para eliminar la imagen de S3
-def delete_image_from_s3(image_url):
-    """Elimina la imagen del bucket de S3 usando la URL proporcionada."""
-    if image_url:
-        # Obtener el nombre del archivo de la URL
-        image_key = image_url.split(f"https://{BUCKET_NAME}.s3.amazonaws.com/")[-1]
-        try:
-            s3_client.delete_object(Bucket=BUCKET_NAME, Key=image_key)
-            print(f"Imagen eliminada exitosamente de S3: {image_key}")
-        except Exception as e:
-            print(f"Error al eliminar la imagen de S3: {e}")
-
-# Función para verificar si el archivo tiene una extensión permitida
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# Función para generar un nombre de archivo basado en el nombre del producto
-def generate_filename(nombre_producto, extension):
-    nombre_seguro = secure_filename(nombre_producto).replace(" ", "_").lower()
-    return f"{nombre_seguro}.{extension}"
-
-def load_inventory():
-    inventario = []
-    try:
-        # Usar lrange para obtener todas las claves de productos almacenadas en una lista llamada "products"
-        url = f"{KV_REST_API_URL}/lrange/products/0/-1"
-        response = requests.get(url, headers=headers)
-
-        # Mostrar el código de estado de la respuesta para depuración
-        print(f"Respuesta de la API REST al obtener claves: {response.status_code}")
-
-        if response.status_code == 200:
-            keys = response.json().get('result', [])
-            print(f"Claves obtenidas: {keys}")
-
-            # Extraer las claves correctas si los valores devueltos tienen formato {"value": "product:1"}
-            keys = [item['value'] if isinstance(item, dict) and 'value' in item else item for item in keys]
-            print(f"Claves procesadas: {keys}")
-
-            # Obtener los datos de cada clave
-            for key in keys:
-                product_data = rest_get(key)
-                if product_data:
-                    print(f"Datos del producto: {product_data}")
-                    product = eval(product_data)  # Convertir la cadena a diccionario
-                    product['cantidad'] = int(product['cantidad'])
-                    product['precio'] = float(product['precio'])
-                    product['tags'] = product['tags'].split(',') if product['tags'] else []
-
-                    # Si el producto tiene una imagen, obtener la URL de S3
-                    if 'imagen' in product and product['imagen']:
-                        product['imagen'] = f'https://{BUCKET_NAME}.s3.amazonaws.com/{product["imagen"]}'
-                    
-                    inventario.append(product)
-            print(f"Inventario cargado: {inventario}")
-        else:
-            print(f"Error al obtener inventario con LRANGE: {response.status_code}, {response.text}")
-
-    except Exception as e:
-        print(f"Error de conexión o problema al cargar el inventario: {e}")
-
-    return inventario
-
-
-# Función para obtener los datos de una clave específica utilizando la API REST de Upstash
-def rest_get(key):
-    # Asegurarse de que el 'key' sea una cadena sin caracteres adicionales
-    key = key.strip()  # Eliminar espacios en blanco extra en la clave
-
-    # Imprimir para depurar la clave que se va a consultar
-    print(f"Obteniendo datos de {key} con URL: {KV_REST_API_URL}/get/{key}")
-    
-    url = f"{KV_REST_API_URL}/get/{key}"
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            print(f"Datos obtenidos para {key}: {response.json()['result']}")
-            return response.json()["result"]
-        else:
-            print(f"Error al obtener {key}: {response.status_code}, {response.text}")
-            return None
-    except Exception as e:
-        print(f"Error de conexión a la API REST al obtener {key}: {e}")
-        return None
-
-
-# Función para guardar un producto usando la API REST
-def save_product(product):
-    key = f"product:{product['id']}"
-    product['tags'] = ','.join(product['tags'])  # Convertir la lista de tags a una cadena
-    # Verificar el formato de las claves antes de guardar
-    print(f"Clave a guardar en la lista 'products': {key}")
-    # Guardar el producto usando la API REST
-    url = f"{KV_REST_API_URL}/set/{key}"
-    try:
-        response = requests.post(url, json={"value": str(product)}, headers=headers)
-        if response.status_code == 200:
-            print(f"Producto {key} guardado exitosamente.")
-            
-            # Agregar la clave del producto a la lista "products" correctamente como una cadena
-            url_push = f"{KV_REST_API_URL}/rpush/products"
-            # Guardar solo el nombre de la clave sin la estructura de diccionario
-            requests.post(url_push, json={"value": key}, headers=headers)
-            print(f"Clave {key} agregada a la lista 'products'.")
-        else:
-            print(f"Error al guardar {key}: {response.status_code}, {response.text}")
-    except Exception as e:
-        print(f"Error de conexión a la API REST al guardar {key}: {e}")
-
-
-
-def load_tags():
-    url = f"{KV_REST_API_URL}/lrange/tags/0/-1"
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            # No es necesario decodificar nuevamente
-            return response.json()["result"]
-        else:
-            print(f"Error al obtener tags: {response.status_code}, {response.text}")
-            return []
-    except Exception as e:
-        print(f"Error de conexión a la API REST: {e}")
-        return []
-    
-# Función para guardar los tags en la API REST (ajustada para evitar doble codificación)
-def save_tags(tags):
-    # Eliminar la lista anterior de tags
-    url_delete = f"{KV_REST_API_URL}/del/tags"
-    requests.post(url_delete, headers=headers)
-
-    # Almacenar cada tag de forma individual sin doble codificación
-    for tag in tags:
-        # Aquí nos aseguramos de no codificar los valores en un JSON adicional
-        url_push = f"{KV_REST_API_URL}/rpush/tags"
-        response = requests.post(url_push, json={"value": tag}, headers=headers)
-        
-        if response.status_code == 200:
-            print(f"Tag {tag} agregado correctamente.")
-        else:
-            print(f"Error al agregar el tag {tag}: {response.status_code}, {response.text}")
-
-def delete_incorrect_keys():
-    url_lrange = f"{KV_REST_API_URL}/lrange/products/0/-1"
-    response = requests.get(url_lrange, headers=headers)
-    if response.status_code == 200:
-        keys = response.json().get('result', [])
-        # Buscar claves con formato incorrecto y eliminarlas
-        for key in keys:
-            if key.startswith('{"value":'):
-                url_lrem = f"{KV_REST_API_URL}/lrem/products/1/{key}"
-                requests.post(url_lrem, headers=headers)
-                print(f"Clave incorrecta eliminada: {key}")
 
 @app.route('/')
 def index():
