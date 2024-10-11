@@ -203,7 +203,7 @@ def delete_product(product_id):
 
     if producto_a_eliminar:
         # Eliminar la imagen de S3 si existe
-        if hasattr(producto_a_eliminar, 'imagen') and producto_a_eliminar.imagen:
+        if check_file_in_s3(product_id):
             delete_image_from_s3(product_id)
 
         # Eliminar el producto de la base de datos

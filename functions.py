@@ -435,10 +435,11 @@ BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 # Función para eliminar la imagen de S3
 def delete_image_from_s3(product_id):
     """Elimina la imagen del bucket de S3 usando la URL proporcionada."""
+    file_name = f"{product_id}.jpg"
     if product_id:
         # Obtener el nombre del archivo de la URL
         try:
-            s3_client.delete_object(Bucket=BUCKET_NAME, Key=f"{product_id}.jpg")
+            s3_client.delete_object(Bucket=BUCKET_NAME, Key=file_name)
             print(f"Imagen eliminada exitosamente de S3: {product_id}")
         except Exception as e:
             print(f"Error al eliminar la imagen de S3: {e}")
