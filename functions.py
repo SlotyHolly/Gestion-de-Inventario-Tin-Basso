@@ -121,7 +121,6 @@ def update_product_tags(product_id, selected_tags):
 
     db_session = Session()
     try:
-
         # Eliminar los registros actuales en la tabla intermedia product_tags
         db_session.execute(
             product_tags.delete().where(product_tags.c.product_id == product_id)
@@ -132,6 +131,10 @@ def update_product_tags(product_id, selected_tags):
             # Buscar el tag por nombre
             tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
 
+            if tag is None:
+                print(f"Tag '{tag_name}' no encontrado, se omite.")
+                continue  # O lanzar una excepción si prefieres
+
             # Insertar el nuevo registro en la tabla intermedia
             db_session.execute(
                 product_tags.insert().values(product_id=product_id, tag_id=tag.id)
@@ -140,13 +143,14 @@ def update_product_tags(product_id, selected_tags):
         # Confirmar los cambios en la base de datos
         db_session.commit()
         print(f"Tags del producto {product_id} actualizados correctamente.")
-        
+
     except Exception as e:
         db_session.rollback()
-        print(f"Error al actualizar los tags del producto {product_id}: {e}")
+        print(f"Error al actualizar los tags del producto {product_id}: {type(e).__name__} - {e}")
         
     finally:
         db_session.close()
+
 
 
 
