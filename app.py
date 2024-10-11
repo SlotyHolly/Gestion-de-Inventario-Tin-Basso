@@ -146,6 +146,8 @@ def manage_tags():
 @app.route('/delete_tag/<string:tag>', methods=['POST'])
 def delete_tag_route(tag):
     # Utilizar la función `delete_tag` para eliminar un tag de la base de datos
+
+    tag = tag.replace('%20', ' ')
     delete_tag(tag)
 
     # Actualizar el inventario eliminando el tag de todos los productos
