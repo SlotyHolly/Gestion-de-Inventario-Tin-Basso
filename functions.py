@@ -131,13 +131,16 @@ def save_product(product):
     except Exception as e:
         print(f"Error de conexión a la API REST al guardar {key}: {e}")
 
-# Función para cargar los tags usando la API REST
+# Función para cargar los tags y asegurarse de que se muestren correctamente
 def load_tags():
+    """Cargar tags de la base de datos y retornar solo el valor limpio."""
     url = f"{KV_REST_API_URL}/lrange/tags/0/-1"
     try:
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
-            return response.json()["result"]
+            # Retornar los valores como una lista de cadenas simples
+            tags = response.json()["result"]
+            return [tag if isinstance(tag, str) else tag.get('value', '') for tag in tags]
         else:
             print(f"Error al obtener tags: {response.status_code}, {response.text}")
             return []
@@ -145,28 +148,33 @@ def load_tags():
         print(f"Error de conexión a la API REST: {e}")
         return []
 
-# Función para guardar los tags en la API REST
+# Función para guardar los tags en la base de datos KV de forma correcta
 def save_tags(tags):
+    """Guardar tags como valores simples en la base de datos."""
+    # Eliminar todos los tags actuales
     url_delete = f"{KV_REST_API_URL}/del/tags"
     requests.post(url_delete, headers=headers)
 
+    # Agregar cada tag como un valor simple
     for tag in tags:
         url_push = f"{KV_REST_API_URL}/rpush/tags"
         response = requests.post(url_push, json={"value": tag}, headers=headers)
-        
         if response.status_code == 200:
-            print(f"Tag {tag} agregado correctamente.")
+            print(f"Tag '{tag}' agregado correctamente.")
         else:
-            print(f"Error al agregar el tag {tag}: {response.status_code}, {response.text}")
+            print(f"Error al agregar el tag '{tag}': {response.status_code}, {response.text}")
 
-# Función para eliminar claves incorrectas de la lista de productos
+# Función para eliminar claves incorrectas en la lista de productos
 def delete_incorrect_keys():
+    """Eliminar cualquier clave con el formato incorrecto en la lista de productos."""
     url_lrange = f"{KV_REST_API_URL}/lrange/products/0/-1"
     response = requests.get(url_lrange, headers=headers)
     if response.status_code == 200:
         keys = response.json().get('result', [])
         for key in keys:
-            if key.startswith('{"value":'):
+            if isinstance(key, str) and key.startswith('{"value":'):
                 url_lrem = f"{KV_REST_API_URL}/lrem/products/1/{key}"
                 requests.post(url_lrem, headers=headers)
                 print(f"Clave incorrecta eliminada: {key}")
+    else:
+        print(f"Error al obtener claves con LRANGE: {response.status_code}, {response.text}")
