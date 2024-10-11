@@ -21,7 +21,7 @@ s3_client = boto3.client(
 )
 
 BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.getenv('POSTGRES_URL')
 
 # Definir la ruta base del directorio
 base_dir = os.path.abspath(os.path.dirname(__file__))
