@@ -164,18 +164,20 @@ def generate_filename(nombre_producto, extension):
     return f"{nombre_seguro}.{extension}"
 
 # Función para cargar el inventario desde la base de datos
-def load_inventory():
-    """Cargar todos los productos desde la base de datos."""
-    products = session.query(Product).all()
-    inventario = []
-    for product in products:
-        inventario.append({
-            'id': product.id,
-            'nombre': product.nombre,
-            'cantidad': product.cantidad,
-            'precio': product.precio,
-            'tags': [tag.nombre for tag in product.tags]
-        })
+def load_inventory(session):
+    """
+    Cargar el inventario desde la base de datos usando la sesión SQLAlchemy.
+    """
+    # Asumir que tienes una tabla de productos definida en la base de datos
+    metadata = MetaData()
+    products = Table('products', metadata, autoload_with=session.bind)
+    
+    # Ejecutar una consulta para obtener todos los productos
+    query = select(products)
+    result = session.execute(query)
+    
+    # Convertir el resultado en una lista de diccionarios
+    inventario = [dict(row) for row in result]
     return inventario
 
 # Función para guardar un producto en la base de datos
@@ -200,10 +202,20 @@ def save_product(product_data):
     print(f"Producto '{new_product.nombre}' guardado exitosamente.")
 
 # Función para cargar los tags
-def load_tags():
-    """Cargar todos los tags desde la base de datos."""
-    tags = session.query(Tag).all()
-    return [tag.nombre for tag in tags]
+def load_tags(session):
+    """
+    Cargar los tags desde la base de datos usando la sesión SQLAlchemy.
+    """
+    metadata = MetaData()
+    tags_table = Table('tags', metadata, autoload_with=session.bind)
+    
+    # Ejecutar una consulta para obtener todos los tags
+    query = select(tags_table.c.name)  # Asumiendo que 'name' es la columna de tags
+    result = session.execute(query)
+    
+    # Retornar los tags como una lista de cadenas
+    tags = [row[0] for row in result]
+    return tags
 
 # Función para guardar tags en la base de datos
 def save_tags(tags):
