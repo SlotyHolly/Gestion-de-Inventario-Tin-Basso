@@ -163,28 +163,42 @@ def load_inventory():
     """
     Carga el inventario de la base de datos utilizando la sesión de SQLAlchemy.
     """
-    # Crear una instancia de la sesión
     db_session = Session()
     try:
-        # Crear el objeto MetaData y reflejar la tabla 'products'
+        # Reflejar las tablas de productos y tags
         metadata = MetaData()
-        products = Table('products', metadata, autoload_with=db_session.bind)  # Utilizar db_session.bind
+        products_table = Table('products', metadata, autoload_with=db_session.bind)
+        product_tags_table = Table('product_tags', metadata, autoload_with=db_session.bind)
+        tags_table = Table('tags', metadata, autoload_with=db_session.bind)
 
         # Realizar la consulta para obtener todos los productos
-        stmt = select(products)
-        result = db_session.execute(stmt)
+        stmt = select(products_table)
+        result = db_session.execute(stmt).fetchall()
 
-        # Convertir el resultado en una lista de diccionarios
         inventario = []
         for row in result:
+            # Consultar los tags asociados con este producto
+            stmt_tags = (
+                select(tags_table.c.nombre)
+                .select_from(product_tags_table)
+                .join(tags_table, tags_table.c.id == product_tags_table.c.tag_id)
+                .where(product_tags_table.c.product_id == row.id)
+            )
+            tags_result = db_session.execute(stmt_tags).fetchall()
+
+            # Convertir los nombres de los tags en una lista
+            tags = [tag_row.nombre for tag_row in tags_result]
+
+            # Construir el diccionario del producto
             product = {
                 'id': row.id,
                 'nombre': row.nombre,
                 'cantidad': row.cantidad,
                 'precio': row.precio,
-                'tags': [tag.nombre for tag in product.tags]  # Aquí cargamos los tags como una lista de nombres de tags
+                'tags': tags  # Asignar la lista de nombres de tags
             }
             inventario.append(product)
+
         return inventario
 
     except Exception as e:
@@ -192,6 +206,7 @@ def load_inventory():
         return []
     finally:
         db_session.close()
+
 
 # Función para guardar o actualizar un producto en la base de datos
 def save_product(product_data):
