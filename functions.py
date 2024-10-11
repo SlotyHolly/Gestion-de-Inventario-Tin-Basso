@@ -165,47 +165,49 @@ def load_inventory():
     """
     db_session = Session()
     try:
-        # Reflejar las tablas de productos y tags
+        # Reflejar las tablas 'products', 'tags', y 'product_tags' usando SQLAlchemy
         metadata = MetaData()
-        products_table = Table('products', metadata, autoload_with=db_session.bind)
-        product_tags_table = Table('product_tags', metadata, autoload_with=db_session.bind)
-        tags_table = Table('tags', metadata, autoload_with=db_session.bind)
+        products = Table('products', metadata, autoload_with=db_session.bind)
+        tags = Table('tags', metadata, autoload_with=db_session.bind)
+        product_tags = Table('product_tags', metadata, autoload_with=db_session.bind)
 
-        # Realizar la consulta para obtener todos los productos
-        stmt = select(products_table)
-        result = db_session.execute(stmt).fetchall()
-
-        inventario = []
-        for row in result:
-            # Consultar los tags asociados con este producto
-            stmt_tags = (
-                select(tags_table.c.nombre)
-                .select_from(product_tags_table)
-                .join(tags_table, tags_table.c.id == product_tags_table.c.tag_id)
-                .where(product_tags_table.c.product_id == row.id)
+        # Realizar la consulta para obtener los productos y sus tags asociados
+        stmt = (
+            select(
+                products.c.id, 
+                products.c.nombre, 
+                products.c.cantidad, 
+                products.c.precio, 
+                tags.c.nombre.label('tag')
             )
-            tags_result = db_session.execute(stmt_tags).fetchall()
+            .select_from(products.join(product_tags).join(tags))
+        )
 
-            # Convertir los nombres de los tags en una lista
-            tags = [tag_row.nombre for tag_row in tags_result]
+        result = db_session.execute(stmt)
 
-            # Construir el diccionario del producto
-            product = {
-                'id': row.id,
-                'nombre': row.nombre,
-                'cantidad': row.cantidad,
-                'precio': row.precio,
-                'tags': tags  # Asignar la lista de nombres de tags
-            }
-            inventario.append(product)
+        # Convertir el resultado en un diccionario de productos con sus tags
+        inventario = {}
+        for row in result:
+            product_id = row.id
+            if product_id not in inventario:
+                inventario[product_id] = {
+                    'id': row.id,
+                    'nombre': row.nombre,
+                    'cantidad': row.cantidad,
+                    'precio': row.precio,
+                    'tags': []
+                }
+            inventario[product_id]['tags'].append(row.tag)
 
-        return inventario
+        # Convertir el diccionario de productos en una lista
+        return list(inventario.values())
 
     except Exception as e:
         print(f"Error al cargar el inventario: {e}")
         return []
     finally:
         db_session.close()
+
 
 
 # Función para guardar o actualizar un producto en la base de datos
