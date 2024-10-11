@@ -76,59 +76,58 @@
         });
     });
     document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('search-input');
-        const productContainer = document.getElementById('product-cards-container');
+    const searchInput = document.getElementById('search-input');
+    const productContainer = document.getElementById('product-cards-container');
 
-        // Mensaje para depuración: Verificar si se está capturando el campo de búsqueda
-        console.log('Campo de búsqueda:', searchInput);
+    // Escuchar cambios en el campo de búsqueda
+    searchInput.addEventListener('input', function() {
+        const query = searchInput.value.trim();  // Eliminar espacios en blanco
+        console.log('Búsqueda realizada:', query);
 
-        // Escuchar cambios en el campo de búsqueda
-        searchInput.addEventListener('input', function() {
-            const query = searchInput.value.trim();  // Eliminar espacios en blanco al inicio y al final
-            console.log('Búsqueda realizada:', query);
+        // Hacer una solicitud al backend para obtener los productos filtrados
+        fetch(`/search?query=${encodeURIComponent(query)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Error en la respuesta: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Productos filtrados recibidos:', data);
 
-            // Hacer una solicitud al backend para obtener los productos filtrados
-            fetch(`/search?query=${encodeURIComponent(query)}`)
-                .then(response => {
-                    // Comprobar si la respuesta es exitosa
-                    console.log('Estado de la respuesta:', response.status);
-                    if (!response.ok) {
-                        throw new Error('Error en la respuesta de búsqueda');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Productos filtrados recibidos:', data);
+                // Limpiar el contenedor de productos
+                productContainer.innerHTML = '';
 
-                    // Limpiar el contenedor de productos
-                    productContainer.innerHTML = '';
-
+                // Verificar si no se encontraron productos
+                if (data.length === 0) {
+                    productContainer.innerHTML = '<p>No se encontraron productos.</p>';
+                } else {
                     // Recorrer los productos devueltos y agregarlos al contenedor
-                    if (data.length === 0) {
-                        productContainer.innerHTML = '<p>No se encontraron productos.</p>';
-                    } else {
-                        data.forEach(product => {
-                            const productCard = document.createElement('div');
-                            productCard.className = 'product-card';
-                            productCard.innerHTML = `
-                                <h3>${product.nombre}</h3>
-                                ${product.imagen ? `<img src="${product.imagen}" alt="${product.nombre}" class="product-image">` : ''}
-                                <p><strong>Cantidad:</strong> ${product.cantidad}</p>
-                                <p><strong>Precio:</strong> $${product.precio}</p>
-                                <p><strong>Tags:</strong> ${product.tags.join(', ')}</p>
-                                <div class="product-card-actions">
-                                    <a href="/edit/${product.id}" class="button">Editar</a>
-                                    <form action="/delete/${product.id}" method="POST" style="display:inline;">
-                                        <button type="submit" class="button-delete">Eliminar</button>
-                                    </form>
-                                </div>
-                            `;
-                            productContainer.appendChild(productCard);
-                        });
-                    }
-                })
-                .catch(error => console.error('Error al realizar la búsqueda:', error));
-        });
+                    data.forEach(product => {
+                        const productCard = document.createElement('div');
+                        productCard.className = 'product-card';
+                        productCard.innerHTML = `
+                            <h3>${product.nombre}</h3>
+                            ${product.imagen ? `<img src="${product.imagen}" alt="${product.nombre}" class="product-image">` : ''}
+                            <p><strong>Cantidad:</strong> ${product.cantidad}</p>
+                            <p><strong>Precio:</strong> $${product.precio}</p>
+                            <p><strong>Tags:</strong> ${product.tags.join(', ')}</p>
+                            <div class="product-card-actions">
+                                <a href="/edit/${product.id}" class="button">Editar</a>
+                                <form action="/delete/${product.id}" method="POST" style="display:inline;">
+                                    <button type="submit" class="button-delete">Eliminar</button>
+                                </form>
+                            </div>
+                        `;
+                        productContainer.appendChild(productCard);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error al realizar la búsqueda:', error);
+                productContainer.innerHTML = '<p>Error al realizar la búsqueda. Inténtalo de nuevo más tarde.</p>';
+            });
     });
+});
 </script>
 {% endblock %}
