@@ -62,6 +62,18 @@ def index():
     
     return render_template('index.html', inventario=inventario, tags=tags, selected_tags=filtro_tags)
 
+@app.route('/search')
+def search_products():
+    query = request.args.get('query', '').lower()
+    if query:
+        # Filtrar productos según la consulta de búsqueda
+        inventario = load_inventory()  # Tu función para cargar inventario
+        filtered_products = [p for p in inventario if query in p['nombre'].lower()]
+    else:
+        filtered_products = load_inventory()  # Cargar todos los productos si no hay búsqueda
+    
+    return jsonify(filtered_products)
+
 # Ruta para editar un producto
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
