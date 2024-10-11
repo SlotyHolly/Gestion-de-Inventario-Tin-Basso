@@ -202,17 +202,17 @@ def save_product(product_data):
     db_session = Session()  # Crear una nueva sesión para interactuar con la base de datos
     try:
         # Intentar cargar el producto existente basado en el ID
-        existing_product = db_session.query(Product).filter_by(id=product_data['id']).first()
+        existing_product = db_session.query(Product).filter_by(id=product_data.id).first()
 
         if existing_product:
             # Si el producto ya existe, actualizar sus campos
-            existing_product.nombre = product_data['nombre']
-            existing_product.cantidad = product_data['cantidad']
-            existing_product.precio = product_data['precio']
+            existing_product.nombre = product_data.nombre
+            existing_product.cantidad = product_data.cantidad
+            existing_product.precio = product_data.precio
             
             # Actualizar tags
             existing_product.tags.clear()  # Eliminar las tags actuales para reasignarlas
-            for tag_name in product_data.get('tags', []):
+            for tag_name in product_data.tags:
                 tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
                 if not tag:
                     tag = Tag(nombre=tag_name)
@@ -222,13 +222,13 @@ def save_product(product_data):
         else:
             # Si el producto no existe, crear uno nuevo y asignarle los tags
             new_product = Product(
-                id=product_data['id'],
-                nombre=product_data['nombre'],
-                cantidad=product_data['cantidad'],
-                precio=product_data['precio']
+                id=product_data.id,
+                nombre=product_data.nombre,
+                cantidad=product_data.cantidad,
+                precio=product_data.precio
             )
             
-            for tag_name in product_data.get('tags', []):
+            for tag_name in product_data.tags:
                 tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
                 if not tag:
                     tag = Tag(nombre=tag_name)
@@ -244,6 +244,7 @@ def save_product(product_data):
         db_session.rollback()
     finally:
         db_session.close()
+
 
 '''
 Manejo de tags
