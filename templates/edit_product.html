@@ -23,8 +23,8 @@
             <div class="form-group">
                 <label for="foto">Foto del Producto</label>
                 <input type="file" id="foto" name="foto" class="form-input">
-                {% if product.imagen %}
-                    <img src="{{product.imagen}}" alt="Imagen del producto" style="max-width: 200px; margin-top: 10px;">
+                {% if product.image_url %}
+                    <img src="{{product.image_url}}" alt="Imagen del producto" style="max-width: 200px; margin-top: 10px;">
                 {% endif %}
             </div>
 

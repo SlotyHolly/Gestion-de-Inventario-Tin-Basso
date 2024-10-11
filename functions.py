@@ -206,7 +206,7 @@ def load_inventory():
             product_tags = load_tags_for_product(row.id)  # Asegúrate de que esta función esté funcionando bien
 
             # Obtener URL de la imagen en S3
-            image_url = get_image_url(row.id)
+            image_url = get_image_url(f"uploads/{row.id}.jpg")
             product = {
                 'id': row.id,
                 'nombre': row.nombre,
@@ -512,7 +512,7 @@ def check_file_in_s3(product_id):
         return False
     
 # Funcion para obtener una URL de imagen en S3
-def get_image_url(product_id, expiration=3600):
+def get_image_url(object_name, expiration=3600):
     """
     Genera una URL firmada para un objeto de S3.
 
@@ -520,10 +520,9 @@ def get_image_url(product_id, expiration=3600):
     - object_name: Nombre del objeto en S3 (por ejemplo, 'imagen.jpg').
     - expiration: Tiempo en segundos hasta que la URL expire (por defecto, 1 hora).
     """
-    object_name = f"{product_id}.jpg"
     try:
         # Generar la URL firmada para acceder al archivo
-        url = s3_client.generate_presigned_url('get_object',
+        url = s3_client.get_image_url('get_object',
                                                Params={'Bucket': BUCKET_NAME,
                                                        'Key': object_name},
                                                ExpiresIn=expiration)

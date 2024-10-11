@@ -8,7 +8,7 @@ import boto3
 from functions import (
     delete_image_from_s3, allowed_file, load_inventory, save_product, load_tags, 
     delete_product_from_db, delete_tag, load_product_from_db, save_tags, save_image_to_s3,
-    update_product_tags, check_file_in_s3
+    update_product_tags, check_file_in_s3, get_image_url
 )
 
 # Cargar las variables de entorno necesarias
@@ -65,6 +65,11 @@ def edit_product(product_id):
 
     # Obtener el producto a editar
     product = load_product_from_db(product_id)
+
+    if product:
+        # Generar la URL firmada para la imagen
+        image_url = get_image_url(f"uploads/{product_id}.jpg")
+        product.image_url = image_url  # Añadir la URL al producto
 
     if request.method == 'POST':
         nombre = request.form['nombre']
