@@ -27,8 +27,7 @@ s3_client = boto3.client(
 BUCKET_NAME = os.getenv('BUCKET_S3_NAME')
 
 # Crear la sesión de SQLAlchemy
-Session = sessionmaker(bind=engine)
-session = Session()
+session = sessionmaker(bind=engine)
 
 # Definir las tablas usando SQLAlchemy
 # Tabla de asociación para productos y tags (muchos a muchos)
@@ -68,9 +67,9 @@ def connect_db():
     engine = create_engine(DATABASE_URL)
     
     # Crear una fábrica de sesiones para gestionar la conexión a la base de datos
-    Session = sessionmaker(bind=engine)
+    session = sessionmaker(bind=engine)
     
-    return Session, engine
+    return session, engine
 
 # Función para cargar productos desde la base de datos
 def load_product_from_db(product_id=None):
@@ -102,7 +101,7 @@ def delete_product_from_db(product_id):
     Eliminar un producto de la base de datos basado en su ID.
     """
     # Conectar a la base de datos
-    session = connect_db()()
+    session = connect_db()
     try:
         # Encontrar el producto a eliminar
         product_to_delete = session.query(Product).filter(Product.id == product_id).first()
@@ -268,9 +267,7 @@ def delete_incorrect_keys():
     Elimina registros duplicados o incorrectos en las tablas de la base de datos.
     """
     try:
-        # Crear una sesión para interactuar con la base de datos
-        Session = sessionmaker(bind=engine)
-        session = Session()
+        session = sessionmaker(bind=engine)
 
         # Usar MetaData para reflejar las tablas
         metadata = MetaData()
