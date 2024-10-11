@@ -237,12 +237,15 @@ def save_product(product_data):
             existing_product.precio = product_data.precio
             
             # Actualizar tags
-            existing_product.tags.clear()  # Eliminar las tags actuales para reasignarlas
-            for tag_name in product_data.tags:
+            existing_product.tags.clear()  # Eliminar los tags actuales para reasignarlas
+
+            for tag_name in product_data.tags:  # Aquí asumimos que product_data.tags es una lista de strings (nombres de tags)
                 tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
                 if not tag:
+                    # Si el tag no existe, lo creamos
                     tag = Tag(nombre=tag_name)
-                existing_product.tags.append(tag)
+                    db_session.add(tag)
+                existing_product.tags.append(tag)  # Asociar el tag al producto
 
             print(f"Producto '{existing_product.nombre}' actualizado exitosamente.")
         else:
@@ -258,7 +261,8 @@ def save_product(product_data):
                 tag = db_session.query(Tag).filter_by(nombre=tag_name).first()
                 if not tag:
                     tag = Tag(nombre=tag_name)
-                new_product.tags.append(tag)
+                    db_session.add(tag)
+                new_product.tags.append(tag)  # Asociar el tag al nuevo producto
             
             db_session.add(new_product)
             print(f"Producto '{new_product.nombre}' guardado exitosamente.")
@@ -270,6 +274,7 @@ def save_product(product_data):
         db_session.rollback()
     finally:
         db_session.close()
+
 
 
 '''

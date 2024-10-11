@@ -61,7 +61,6 @@ def index():
 # Ruta para editar un producto
 @app.route('/edit_product/<int:product_id>', methods=['GET', 'POST'])
 def edit_product(product_id):
-
     tags = load_tags()  # Cargar todos los tags
 
     # Obtener el producto a editar
@@ -97,6 +96,7 @@ def edit_product(product_id):
         return redirect(url_for('index'))
 
     return render_template('edit_product.html', product=product, tags=tags)
+
 
 
 
