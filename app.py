@@ -156,31 +156,8 @@ def add_product():
         file = request.files['foto'] if 'foto' in request.files else None
         imagen = None
         if file and allowed_file(file.filename):
-            extension = file.filename.rsplit('.', 1)[1].lower()
-            filename = generate_filename(nombre, extension)
-            
-            # Leer el contenido del archivo y manipularlo en memoria
-            image_stream = io.BytesIO(file.read())
-
             try:
-                # Abrir la imagen para manipularla
-                image = Image.open(image_stream)
-                image = crop_image_to_square(image)  # Recortar a proporción 1:1
-
-                # Comprimir la imagen y guardarla en un nuevo stream de bytes
-                compressed_image = compress_image(image, quality=50)
-
-                # Subir la imagen a S3 usando boto3
-                s3_client.upload_fileobj(
-                    compressed_image,
-                    BUCKET_NAME,
-                    filename,
-                    ExtraArgs={'ContentType': 'image/jpeg'}
-                )
-
-                # Construir la URL de la imagen subida
-                imagen = f'https://{BUCKET_NAME}.s3.amazonaws.com/{filename}'
-
+                save_image_to_s3(file, new_id)
                 print(f"Imagen subida exitosamente a S3: {imagen}")
 
             except Exception as e:
