@@ -268,11 +268,16 @@ def save_tags(tags):
 
 # Función para eliminar tags en la base de datos
 def delete_tag(tag_name):
-    """Eliminar un tag de la base de datos."""
-    tag_to_delete = session.query(Tag).filter_by(nombre=tag_name).first()
+    """
+    Eliminar un tag de la base de datos.
+    """
+    # Crear una sesión para trabajar con la base de datos
+    db_session = Session()  # Crear una instancia de la sesión
+    
+    tag_to_delete = db_session.query(Tag).filter_by(nombre=tag_name).first()
     if tag_to_delete:
-        session.delete(tag_to_delete)
-        session.commit()
+        db_session.delete(tag_to_delete)
+        db_session.commit()
         print(f"Tag '{tag_name}' eliminado de la base de datos.")
     else:
         print(f"Tag '{tag_name}' no encontrado en la base de datos.")
