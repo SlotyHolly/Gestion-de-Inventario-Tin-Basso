@@ -52,6 +52,32 @@ body.dark-mode {
     box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* Sombra para el contenedor */
 }
 
+.navbar {
+    display: flex;
+    justify-content: space-between; /* Coloca los elementos de la barra en extremos opuestos */
+    align-items: center;
+    padding: 10px;
+}
+
+.nav-items {
+    display: flex;
+    align-items: center;
+}
+
+#toggle-dark-mode {
+    margin-left: auto; /* Alinea el botón a la derecha */
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+#toggle-dark-mode:hover {
+    background-color: #0056b3;
+}
+
 /* Contenedor de botones y filtros */
 .button-container {
     display: flex;

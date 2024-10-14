@@ -128,25 +128,6 @@
                 productContainer.innerHTML = '<p>Error al realizar la búsqueda. Inténtalo de nuevo más tarde.</p>';
             });
     });
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggleButton = document.getElementById('toggle-dark-mode');
-        
-        // Verificar si el usuario ya tiene una preferencia de modo
-        if (localStorage.getItem('theme') === 'dark') {
-            document.body.classList.add('dark-mode');
-        }
-
-        toggleButton.addEventListener('click', function() {
-            document.body.classList.toggle('dark-mode');
-            toggleButton.textContent = document.body.classList.contains('dark-mode') ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
-            // Guardar la preferencia del usuario en el almacenamiento local
-            if (document.body.classList.contains('dark-mode')) {
-                localStorage.setItem('theme', 'dark');
-            } else {
-                localStorage.setItem('theme', 'light');
-            }
-        });
-    });
 });
 </script>
 {% endblock %}

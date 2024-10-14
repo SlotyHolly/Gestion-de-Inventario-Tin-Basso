@@ -10,10 +10,44 @@
 <body>
     <div class="container">
         <h1>Gestión de Inventario</h1>
-        # Agregamos un boton en la parte superior derecha para cambiar al modo oscuro
-        <button id="toggle-dark-mode" class="button">Cambiar a Modo Oscuro</button>
         {% block content %}
         {% endblock %}
     </div>
 </body>
+<header>
+    <!-- Aquí puede ir el logo, el menú de navegación, etc. -->
+    <nav class="navbar">
+        <!-- Otros elementos del menú o el logo -->
+        <div class="nav-items">
+            <!-- Otros elementos del menú -->
+
+            <!-- Botón para alternar entre modo oscuro y claro -->
+            <button id="toggle-dark-mode" class="button">Cambiar a modo oscuro</button>
+        </div>
+    </nav>
+</header>
 </html>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleButton = document.getElementById('toggle-dark-mode');
+        
+        // Verificar si el usuario ya tiene una preferencia de modo
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+
+        toggleButton.addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+            
+            // Guardar la preferencia del usuario en el almacenamiento local
+            if (document.body.classList.contains('dark-mode')) {
+                localStorage.setItem('theme', 'dark');
+                toggleButton.textContent = 'Cambiar a modo claro';
+            } else {
+                localStorage.setItem('theme', 'light');
+                toggleButton.textContent = 'Cambiar a modo oscuro';
+            }
+        });
+    });
+</script>
