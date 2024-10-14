@@ -7,6 +7,33 @@ body, html {
     text-align: center;
 }
 
+/* Estilos para el modo claro */
+body {
+    background-color: white;
+    color: black;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* Estilos para el modo oscuro */
+body.dark-mode {
+    background-color: #121212;
+    color: white;
+}
+
+/* Opcional: cambiar el color de los botones y otros elementos */
+.button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+.dark-mode .button {
+    background-color: #444;
+    color: white;
+}
+
 /* Contenedor principal */
 .main-container {
     justify-content: center; /* Centrar el contenedor principal */
